@@ -6,6 +6,12 @@
 pip install -e .
 ```
 
+开发环境可直接安装 dev 依赖：
+
+```bash
+pip install -e ".[dev]"
+```
+
 2. 准备少量测试图片：
 
 ```bash
@@ -70,7 +76,16 @@ noctilux run --config configs/presets/all_basic_v021.yaml
 
 metadata 文件用途：
 
-- `manifest.csv`：每个输出样本的索引表，适合后续训练或分析
-- `transform_log.jsonl`：每张输出图的详细 transform 执行记录
-- `failed_images.csv`：失败样本、阶段、pipeline、seed 和错误信息
-- `summary.csv`：按 pipeline 汇总成功/失败数量
+- `manifest.csv`：每个输出样本的索引表，适合后续训练或分析。
+- `transform_log.jsonl`：每张输出图的详细 transform 执行记录。
+- `failed_images.csv`：失败样本、阶段、pipeline、seed 和错误信息。
+- `summary.csv`：按 pipeline 汇总成功/失败数量。
+
+10. 本地构建分发文件：
+
+```bash
+python -m pip install build
+python -m build
+```
+
+说明：`build` 仅用于本地构建检查。当前项目不发布 PyPI，也不自动创建 GitHub Release。

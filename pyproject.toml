@@ -1,16 +1,36 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "noctilux"
-version = "0.2.1"
+version = "0.2.2"
 description = "Offline image batch processing and augmentation toolkit"
-readme = "README.md"
-requires-python = ">=3.9"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-  { name = "Noctilux Contributors" }
+  { name = "Noctilux Contributors" },
+]
+keywords = [
+  "image-processing",
+  "image-augmentation",
+  "computer-vision",
+  "offline-pipeline",
+  "dataset-preparation",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Multimedia :: Graphics",
+  "Topic :: Scientific/Engineering :: Image Processing",
 ]
 dependencies = [
   "numpy",
@@ -19,6 +39,17 @@ dependencies = [
   "pyyaml",
   "tqdm",
 ]
+
+[project.optional-dependencies]
+dev = [
+  "build",
+  "pytest",
+  "ruff",
+]
+
+[project.urls]
+Repository = "https://github.com/yelikour/noctilux"
+Issues = "https://github.com/yelikour/noctilux/issues"
 
 [project.scripts]
 noctilux = "noctilux.cli:main"
@@ -32,7 +63,12 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+cache_dir = "/tmp/noctilux_pytest_cache"
 
 [tool.ruff]
-line-length = 100
-target-version = "py39"
+line-length = 120
+target-version = "py310"
+cache-dir = "/tmp/noctilux_ruff_cache"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

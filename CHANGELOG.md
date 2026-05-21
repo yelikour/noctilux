@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2
+
+- Added GitHub Actions CI for pytest, ruff, and core CLI checks across Python 3.10, 3.11, and 3.12.
+- Added ruff lint configuration and aligned developer dependencies for local quality checks.
+- Improved `pyproject.toml` project metadata, optional dev dependencies, and pytest cache handling.
+- Added documentation and configuration consistency tests for example configs, presets, and CI workflow coverage.
+- Updated developer workflow documentation with editable install, build, lint, and CI-oriented guidance.
+
 ## 0.2.1
 
 - Added reusable preset configs for classification, compression robustness, resize/crop suites, light degradations, and smoke testing.

@@ -6,6 +6,8 @@ from pathlib import Path
 
 from PIL import Image
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 
 def test_preview_script_generates_nonempty_grid(tmp_path: Path) -> None:
     image_path = tmp_path / "sample.jpg"
@@ -27,7 +29,7 @@ def test_preview_script_generates_nonempty_grid(tmp_path: Path) -> None:
             "--seed",
             "42",
         ],
-        cwd="/home/yeli/data/Projects/Noctilux",
+        cwd=REPO_ROOT,
         check=True,
     )
 

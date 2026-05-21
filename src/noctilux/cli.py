@@ -16,7 +16,6 @@ from noctilux.registry import list_transforms
 from noctilux.saver import OutputSaver
 from noctilux.scanner import build_manifest_from_folder, scan_inputs
 
-
 LOGGER = logging.getLogger("noctilux")
 
 
@@ -118,7 +117,12 @@ def run_command(args: argparse.Namespace) -> int:
         print("success_count: 0")
         print("failed_count: 0")
         print(f"metadata_path: {Path(config['output']['root']) / config['output']['metadata_dir']}")
-        LOGGER.info("Dry run complete. samples=%d pipelines=%d planned_outputs=%d", len(samples), len(pipelines), planned_outputs)
+        LOGGER.info(
+            "Dry run complete. samples=%d pipelines=%d planned_outputs=%d",
+            len(samples),
+            len(pipelines),
+            planned_outputs,
+        )
         return 0
 
     saver = OutputSaver(config["output"])

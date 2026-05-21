@@ -208,7 +208,7 @@ def test_num_workers_gt_one_warns_and_keeps_serial_results(
 
     exit_code = main(["run", "--config", str(config_path)])
 
-    captured = capsys.readouterr()
+    capsys.readouterr()
     assert exit_code == 0
     assert "num_workers is currently reserved and execution is still serial in v0.2.x." in caplog.text
     output_dir = tmp_path / "output" / "images" / "resize_32" / "class_a"

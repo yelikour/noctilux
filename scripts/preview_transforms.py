@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import argparse
 import math
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
@@ -11,7 +11,6 @@ from noctilux.config import load_config, resolve_config, validate_config
 from noctilux.image_io.loader import load_image
 from noctilux.image_io.writer import save_image
 from noctilux.pipeline import build_pipelines
-
 
 CAPTION_HEIGHT = 28
 GRID_BACKGROUND = (245, 245, 245)

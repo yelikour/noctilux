@@ -3,8 +3,8 @@ from __future__ import annotations
 import math
 
 import numpy as np
-from PIL import Image, ImageFilter
 from numpy.lib.stride_tricks import sliding_window_view
+from PIL import Image, ImageFilter
 
 from noctilux.registry import register_transform
 from noctilux.transforms.base import BaseTransform
