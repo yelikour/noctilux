@@ -1,0 +1,71 @@
+project:
+  name: noctilux_full_v020
+  seed: 42
+  description: "Balanced multi-stage example pipeline for Noctilux v0.2.0."
+
+input:
+  mode: folder
+  image_root: examples/images
+  infer_label_from_subdir: true
+  recursive: true
+
+output:
+  root: outputs/example_run
+  preserve_subdirs: true
+  overwrite: false
+  save_format: jpg
+  jpg_quality: 92
+
+runtime:
+  dry_run: false
+  num_workers: 1
+  skip_broken_images: true
+  fail_fast: false
+  show_progress: true
+
+pipelines:
+  - name: balanced_v020
+    repeat: 1
+    transforms:
+      - name: resize_short_edge
+        params:
+          short_edge: 640
+          interpolation: lanczos
+      - name: random_resized_crop
+        p: 0.7
+        params:
+          scale_min: 0.6
+          scale_max: 0.95
+          ratio_min: 0.8
+          ratio_max: 1.25
+          output_width: 512
+          output_height: 512
+      - name: rotate
+        p: 0.5
+        params:
+          angle:
+            type: choice
+            values: [-10, -5, 5, 10]
+          expand: false
+          fill_color: [0, 0, 0]
+      - name: motion_blur
+        p: 0.2
+        params:
+          kernel_size: 5
+          angle:
+            type: choice
+            values: [0, 45, 90, 135]
+      - name: salt_pepper_noise
+        p: 0.2
+        params:
+          amount: 0.01
+          salt_vs_pepper: 0.5
+      - name: saturation_hue
+        p: 0.5
+        params:
+          saturation: 1.1
+          hue_shift: 8
+      - name: jpeg_compression
+        params:
+          quality: 85
+          subsampling: "4:2:0"

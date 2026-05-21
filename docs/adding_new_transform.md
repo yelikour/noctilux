@@ -60,3 +60,10 @@ def test_invert_rgb_returns_pil_image():
 ```
 
 新增 transform 时不要在 `pipeline.py` 中写 `if/elif` 分发。统一走 registry。
+
+在 v0.2.0 中，新增 transform 仍然需要遵守同样规则：
+
+- 输入输出统一为 `PIL.Image.Image`
+- 参数校验放在 `validate_params()`
+- 随机行为从 `context["rng"]` 或 `context["np_rng"]` 读取，以支持 pipeline seed 复现
+- 注册后可直接被 `noctilux list-transforms` 和 YAML pipeline 使用

@@ -1,0 +1,45 @@
+project:
+  name: noctilux_resize_plus
+  seed: 42
+  description: "Extended resize examples for v0.2.0."
+
+input:
+  mode: folder
+  image_root: examples/images
+  infer_label_from_subdir: true
+  recursive: true
+
+output:
+  root: outputs/example_run
+  preserve_subdirs: true
+  overwrite: false
+  save_format: jpg
+
+runtime:
+  dry_run: false
+  num_workers: 1
+  skip_broken_images: true
+  fail_fast: false
+  show_progress: true
+
+pipelines:
+  - name: exact_640x480
+    transforms:
+      - name: resize_exact
+        params:
+          width: 640
+          height: 480
+          interpolation: bicubic
+  - name: short_384
+    transforms:
+      - name: resize_short_edge
+        params:
+          short_edge: 384
+          interpolation: lanczos
+  - name: down_up_05
+    transforms:
+      - name: downscale_upscale
+        params:
+          scale: 0.5
+          down_interpolation: bilinear
+          up_interpolation: bicubic

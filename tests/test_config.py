@@ -63,6 +63,22 @@ def test_example_config_passes_validation() -> None:
     assert len(config["pipelines"]) == 1
 
 
+@pytest.mark.parametrize(
+    "config_path",
+    [
+        "configs/examples/compression_plus.yaml",
+        "configs/examples/resize_plus.yaml",
+        "configs/examples/crop_plus.yaml",
+        "configs/examples/geometric_color.yaml",
+        "configs/examples/full_v020.yaml",
+    ],
+)
+def test_v020_example_configs_pass_validation(config_path: str) -> None:
+    config = resolve_config(load_config(config_path))
+    validate_config(config)
+    assert len(config["pipelines"]) >= 1
+
+
 def test_invalid_pipeline_name_has_clear_error(tmp_path: Path) -> None:
     config_path = tmp_path / "invalid.yaml"
     config_path.write_text(

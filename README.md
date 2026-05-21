@@ -2,7 +2,7 @@
 
 Noctilux 是一个通用的离线图像批处理与增强工具。它面向训练前的数据准备阶段，使用 YAML 配置定义可复现、可追溯、可扩展的图像处理流水线，并将输出图片与 metadata 一起落盘。
 
-当前稳定版本为 `v0.1.2`。
+当前稳定版本为 `v0.2.0`。
 
 ## 安装
 
@@ -53,6 +53,16 @@ noctilux run --config configs/examples/basic_resize.yaml
 - CLI：`--help`、`inspect-config`、`list-transforms`、`run`、`make-manifest`
 - 基础 transforms：JPEG 压缩、长边缩放、中心裁剪、高斯模糊、高斯噪声、亮度对比度
 
+## v0.2.0 新增 transforms
+
+- Compression：`webp_compression`、`png_resave`、`double_jpeg_compression`
+- Resize：`resize_exact`、`resize_short_edge`、`downscale_upscale`
+- Crop：`random_crop_ratio`、`random_resized_crop`、`square_crop`
+- Geometric：`horizontal_flip`、`vertical_flip`、`rotate`
+- Blur：`median_blur`、`motion_blur`
+- Noise：`poisson_noise`、`salt_pepper_noise`
+- Color：`gamma_correction`、`saturation_hue`、`grayscale`、`sharpen`、`posterize`
+
 ## 输入格式
 
 - `folder`：扫描文件夹中的图片，可选从子目录推断 `label`。
@@ -83,7 +93,6 @@ metadata 至少包含：
 
 - `manifest.csv`：每个输出样本一行，记录原图、输出图、pipeline、尺寸、格式、seed 和成功状态。
 - `transform_log.jsonl`：每个输出样本一条 JSON，记录 transform 顺序、是否执行、实际采样参数和输入输出信息。
-- `failed_images.csv`：记录读图失败或 transform 执行失败的样本。
 - `failed_images.csv`：记录失败样本的 `pipeline_name`、`repeat_index`、`seed`、`stage` 和错误信息。
 - `summary.csv`：按 pipeline 聚合统计总数、成功数、失败数。
 
@@ -127,9 +136,19 @@ pipelines:
 noctilux --help
 noctilux list-transforms
 noctilux inspect-config --config configs/examples/basic_resize.yaml
+noctilux inspect-config --config configs/examples/full_v020.yaml
 noctilux make-manifest --image-root path/to/images --output manifest.csv --infer-label-from-subdir
 noctilux run --config configs/examples/basic_resize.yaml
+noctilux run --config configs/examples/full_v020.yaml --dry-run
 ```
+
+更多配置示例：
+
+- `configs/examples/compression_plus.yaml`
+- `configs/examples/resize_plus.yaml`
+- `configs/examples/crop_plus.yaml`
+- `configs/examples/geometric_color.yaml`
+- `configs/examples/full_v020.yaml`
 
 ## 第一个真实运行示例
 
@@ -185,7 +204,7 @@ noctilux run --config /tmp/noctilux_demo/config.yaml
 - 仅实现离线图片批处理，不包含训练逻辑。
 - 仅支持 `folder` 与 `manifest` 两种输入模式。
 - 当前后端仅实现 Pillow + NumPy 基础变换。
-- `num_workers` 配置已保留，但 v0.1.2 仍为串行执行，是未来并行接口占位。
+- `num_workers` 配置已保留，但 v0.2.0 仍为串行执行，是未来并行接口占位。
 
 ## 常见错误
 

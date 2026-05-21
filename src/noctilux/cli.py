@@ -49,6 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     run_parser = subparsers.add_parser("run", help="Run an offline processing job.")
     run_parser.add_argument("--config", required=True, help="Path to YAML config.")
+    run_parser.add_argument("--dry-run", action="store_true", help="Override config and run without writing outputs.")
     run_parser.set_defaults(func=run_command)
 
     manifest_parser = subparsers.add_parser("make-manifest", help="Generate a CSV manifest from a folder.")
@@ -82,7 +83,7 @@ def inspect_config_command(args: argparse.Namespace) -> int:
     print(f"transforms: {transform_count}")
     print(f"dry_run: {config['runtime']['dry_run']}")
     print(f"overwrite: {config['output']['overwrite']}")
-    print(f"num_workers: {config['runtime']['num_workers']} (serial execution in v0.1.x)")
+    print(f"num_workers: {config['runtime']['num_workers']} (serial execution in v0.2.x)")
     return 0
 
 
@@ -94,11 +95,21 @@ def list_transforms_command(args: argparse.Namespace) -> int:
 
 def run_command(args: argparse.Namespace) -> int:
     config = _load_and_validate(args.config)
-    samples = scan_inputs(config)
+    if getattr(args, "dry_run", False):
+        config["runtime"]["dry_run"] = True
+    samples: list[dict[str, Any]]
+    try:
+        samples = scan_inputs(config)
+    except (FileNotFoundError, NotADirectoryError) as exc:
+        if config["runtime"]["dry_run"]:
+            LOGGER.warning("Dry run could not scan inputs: %s", exc)
+            samples = []
+        else:
+            raise
     pipelines = build_pipelines(config)
 
     if config["runtime"]["num_workers"] > 1:
-        LOGGER.warning("num_workers is currently reserved and execution is still serial in v0.1.x.")
+        LOGGER.warning("num_workers is currently reserved and execution is still serial in v0.2.x.")
 
     if config["runtime"]["dry_run"]:
         planned_outputs = sum(pipeline.repeat for pipeline in pipelines) * len(samples)

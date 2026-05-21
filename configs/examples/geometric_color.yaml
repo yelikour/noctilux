@@ -1,0 +1,52 @@
+project:
+  name: noctilux_geometric_color
+  seed: 42
+  description: "Geometric and color transforms for v0.2.0."
+
+input:
+  mode: folder
+  image_root: examples/images
+  infer_label_from_subdir: true
+  recursive: true
+
+output:
+  root: outputs/example_run
+  preserve_subdirs: true
+  overwrite: false
+  save_format: jpg
+
+runtime:
+  dry_run: false
+  num_workers: 1
+  skip_broken_images: true
+  fail_fast: false
+  show_progress: true
+
+pipelines:
+  - name: geo_color_mix
+    transforms:
+      - name: horizontal_flip
+        params: {}
+      - name: vertical_flip
+        params: {}
+      - name: rotate
+        params:
+          angle: 15
+          expand: false
+          fill_color: [0, 0, 0]
+      - name: gamma_correction
+        params:
+          gamma: 1.1
+      - name: saturation_hue
+        params:
+          saturation: 1.2
+          hue_shift: 12
+      - name: grayscale
+        params:
+          keep_rgb: true
+      - name: sharpen
+        params:
+          factor: 1.5
+      - name: posterize
+        params:
+          bits: 6

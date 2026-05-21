@@ -149,7 +149,7 @@ def test_inspect_config_prints_required_fields(tmp_path: Path, capsys: pytest.Ca
     assert "output_root:" in captured.out
     assert "dry_run: True" in captured.out
     assert "overwrite: False" in captured.out
-    assert "num_workers: 1 (serial execution in v0.1.x)" in captured.out
+    assert "num_workers: 1 (serial execution in v0.2.x)" in captured.out
 
 
 def test_make_manifest_recurses_and_filters_non_images(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -210,7 +210,15 @@ def test_num_workers_gt_one_warns_and_keeps_serial_results(
 
     captured = capsys.readouterr()
     assert exit_code == 0
-    assert "num_workers is currently reserved and execution is still serial in v0.1.x." in caplog.text
+    assert "num_workers is currently reserved and execution is still serial in v0.2.x." in caplog.text
     output_dir = tmp_path / "output" / "images" / "resize_32" / "class_a"
     outputs = sorted(output_dir.glob("*.jpg"))
     assert len(outputs) == 1
+
+
+def test_full_v020_example_supports_cli_dry_run(capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code = main(["run", "--config", "configs/examples/full_v020.yaml", "--dry-run"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "total_outputs: 0" in captured.out

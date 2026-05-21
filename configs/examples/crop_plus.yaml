@@ -1,0 +1,44 @@
+project:
+  name: noctilux_crop_plus
+  seed: 42
+  description: "Extended crop examples for v0.2.0."
+
+input:
+  mode: folder
+  image_root: examples/images
+  infer_label_from_subdir: true
+  recursive: true
+
+output:
+  root: outputs/example_run
+  preserve_subdirs: true
+  overwrite: false
+  save_format: jpg
+
+runtime:
+  dry_run: false
+  num_workers: 1
+  skip_broken_images: true
+  fail_fast: false
+  show_progress: true
+
+pipelines:
+  - name: random_crop_08
+    transforms:
+      - name: random_crop_ratio
+        params:
+          ratio: 0.8
+  - name: random_resized_256
+    transforms:
+      - name: random_resized_crop
+        params:
+          scale_min: 0.5
+          scale_max: 0.9
+          ratio_min: 0.75
+          ratio_max: 1.33
+          output_width: 256
+          output_height: 256
+  - name: square_crop
+    transforms:
+      - name: square_crop
+        params: {}

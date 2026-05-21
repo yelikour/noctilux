@@ -1,0 +1,41 @@
+project:
+  name: noctilux_compression_plus
+  seed: 42
+  description: "Extended compression examples for v0.2.0."
+
+input:
+  mode: folder
+  image_root: examples/images
+  infer_label_from_subdir: true
+  recursive: true
+
+output:
+  root: outputs/example_run
+  preserve_subdirs: true
+  overwrite: false
+  save_format: jpg
+
+runtime:
+  dry_run: false
+  num_workers: 1
+  skip_broken_images: true
+  fail_fast: false
+  show_progress: true
+
+pipelines:
+  - name: webp_q75
+    transforms:
+      - name: webp_compression
+        params:
+          quality: 75
+  - name: png_resave_c6
+    transforms:
+      - name: png_resave
+        params:
+          compress_level: 6
+  - name: double_jpeg_85_65
+    transforms:
+      - name: double_jpeg_compression
+        params:
+          quality1: 85
+          quality2: 65

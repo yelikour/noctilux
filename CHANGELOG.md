@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- Added 21 common image transforms across compression, resize, crop, geometric, blur, noise, and color categories.
+- Added `run --dry-run` CLI override and dry-run support for example configs without local image assets.
+- Added new example configs for advanced transform groups and a balanced `full_v020` pipeline.
+- Expanded tests to cover new transforms, config examples, and dry-run behavior.
+
 ## 0.1.2
 
 - Expanded `failed_images.csv` with pipeline, repeat, seed, and stage fields.
