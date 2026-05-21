@@ -1,0 +1,50 @@
+project:
+  name: noctilux_classification_light
+  seed: 42
+  description: "Lightweight preset for generic image classification tasks."
+
+input:
+  mode: folder
+  image_root: examples/images
+  infer_label_from_subdir: true
+  recursive: true
+
+output:
+  root: outputs/example_run
+  preserve_subdirs: true
+  overwrite: false
+  save_format: jpg
+  jpg_quality: 92
+
+runtime:
+  dry_run: false
+  num_workers: 1
+  skip_broken_images: true
+  fail_fast: false
+  show_progress: true
+
+pipelines:
+  - name: classification_light
+    repeat: 1
+    transforms:
+      - name: random_crop_ratio
+        p: 0.7
+        params:
+          ratio: 0.9
+      - name: resize_long_edge
+        params:
+          long_edge: 512
+          interpolation: bicubic
+      - name: horizontal_flip
+        p: 0.5
+        params: {}
+      - name: brightness_contrast
+        p: 0.4
+        params:
+          brightness: 1.05
+          contrast: 1.05
+      - name: jpeg_compression
+        p: 0.3
+        params:
+          quality: 90
+          subsampling: "4:2:0"

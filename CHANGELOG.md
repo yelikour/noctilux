@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+- Added reusable preset configs for classification, compression robustness, resize/crop suites, light degradations, and smoke testing.
+- Reworked `scripts/preview_transforms.py` into a config-driven preview grid generator for single images.
+- Optimized `motion_blur` with vectorized NumPy convolution and improved edge padding behavior.
+- Expanded smoke tests, preset validation, and preview generation coverage.
+
 ## 0.2.0
 
 - Added 21 common image transforms across compression, resize, crop, geometric, blur, noise, and color categories.

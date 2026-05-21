@@ -127,6 +127,15 @@ def test_rotate_does_not_crash() -> None:
     assert isinstance(output, Image.Image)
 
 
+@pytest.mark.parametrize("angle", [0, 90])
+def test_motion_blur_runs_for_cardinal_angles(angle: int) -> None:
+    image = Image.new("RGB", (40, 30), color="red")
+    transform = build_transform("motion_blur", params={"kernel_size": 5, "angle": angle})
+    output = transform(image, context=_context(0))
+    assert output.size == image.size
+    assert output.mode == "RGB"
+
+
 @pytest.mark.parametrize(
     ("name", "params"),
     [

@@ -2,7 +2,7 @@
 
 Noctilux 是一个通用的离线图像批处理与增强工具。它面向训练前的数据准备阶段，使用 YAML 配置定义可复现、可追溯、可扩展的图像处理流水线，并将输出图片与 metadata 一起落盘。
 
-当前稳定版本为 `v0.2.0`。
+当前稳定版本为 `v0.2.1`。
 
 ## 安装
 
@@ -62,6 +62,17 @@ noctilux run --config configs/examples/basic_resize.yaml
 - Blur：`median_blur`、`motion_blur`
 - Noise：`poisson_noise`、`salt_pepper_noise`
 - Color：`gamma_correction`、`saturation_hue`、`grayscale`、`sharpen`、`posterize`
+
+## v0.2.1 preset 与预览增强
+
+- 新增 `configs/presets/`：
+  - `classification_light.yaml`
+  - `compression_robustness.yaml`
+  - `resize_crop_suite.yaml`
+  - `visual_degradation_light.yaml`
+  - `all_basic_v021.yaml`
+- 新增单图预览工作流：`scripts/preview_transforms.py`
+- `motion_blur` 改为轻量向量化实现，边界使用 `edge padding`
 
 ## 输入格式
 
@@ -150,6 +161,58 @@ noctilux run --config configs/examples/full_v020.yaml --dry-run
 - `configs/examples/geometric_color.yaml`
 - `configs/examples/full_v020.yaml`
 
+Preset 配置：
+
+- `configs/presets/classification_light.yaml`
+- `configs/presets/compression_robustness.yaml`
+- `configs/presets/resize_crop_suite.yaml`
+- `configs/presets/visual_degradation_light.yaml`
+- `configs/presets/all_basic_v021.yaml`
+
+## 推荐工作流
+
+1. 生成 manifest：
+
+```bash
+noctilux make-manifest --image-root path/to/images --output manifest.csv --infer-label-from-subdir
+```
+
+2. 检查配置：
+
+```bash
+noctilux inspect-config --config configs/presets/all_basic_v021.yaml
+```
+
+3. 预览配置效果：
+
+```bash
+python scripts/preview_transforms.py \
+  --config configs/examples/full_v020.yaml \
+  --image path/to/image.jpg \
+  --output outputs/previews/preview_grid.jpg \
+  --max-pipelines 8 \
+  --seed 42
+```
+
+4. 先 dry-run：
+
+```bash
+noctilux run --config configs/presets/all_basic_v021.yaml --dry-run
+```
+
+5. 正式运行：
+
+```bash
+noctilux run --config configs/presets/all_basic_v021.yaml
+```
+
+6. 查看 metadata：
+
+- `outputs/.../metadata/manifest.csv`
+- `outputs/.../metadata/transform_log.jsonl`
+- `outputs/.../metadata/failed_images.csv`
+- `outputs/.../metadata/summary.csv`
+
 ## 第一个真实运行示例
 
 ```bash
@@ -189,6 +252,17 @@ noctilux inspect-config --config /tmp/noctilux_demo/config.yaml
 noctilux run --config /tmp/noctilux_demo/config.yaml
 ```
 
+## Preview 脚本示例
+
+```bash
+python scripts/preview_transforms.py \
+  --config configs/presets/all_basic_v021.yaml \
+  --image /tmp/noctilux_demo/images/class_a/sample.jpg \
+  --output /tmp/noctilux_demo/preview_grid.jpg \
+  --max-pipelines 8 \
+  --seed 42
+```
+
 ## 如何新增 Transform
 
 1. 在 `src/noctilux/transforms/` 下新增模块或类。
@@ -204,7 +278,10 @@ noctilux run --config /tmp/noctilux_demo/config.yaml
 - 仅实现离线图片批处理，不包含训练逻辑。
 - 仅支持 `folder` 与 `manifest` 两种输入模式。
 - 当前后端仅实现 Pillow + NumPy 基础变换。
-- `num_workers` 配置已保留，但 v0.2.0 仍为串行执行，是未来并行接口占位。
+- `num_workers` 配置已保留，但 v0.2.1 仍为串行执行，是未来并行接口占位。
+- 当前没有 OpenCV / Albumentations / AugLy 后端。
+- detection / segmentation 的 annotation 同步增强尚未实现。
+- `motion_blur` 是轻量实现，适合预览和离线批处理基线，不是高性能图像处理内核。
 
 ## 常见错误
 

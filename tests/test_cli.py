@@ -222,3 +222,11 @@ def test_full_v020_example_supports_cli_dry_run(capsys: pytest.CaptureFixture[st
     captured = capsys.readouterr()
     assert exit_code == 0
     assert "total_outputs: 0" in captured.out
+
+
+def test_all_basic_v021_preset_supports_cli_dry_run(capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code = main(["run", "--config", "configs/presets/all_basic_v021.yaml", "--dry-run"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "total_outputs: 0" in captured.out

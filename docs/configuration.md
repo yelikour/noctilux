@@ -37,3 +37,52 @@ transform 概率：
       min: 0.2
       max: 1.5
 ```
+
+repeat 示例：
+
+```yaml
+pipelines:
+  - name: crop_variants
+    repeat: 2
+    transforms:
+      - name: random_crop_ratio
+        params:
+          ratio: 0.85
+```
+
+综合随机参数示例：
+
+```yaml
+pipelines:
+  - name: mixed_random
+    transforms:
+      - name: rotate
+        p: 0.5
+        params:
+          angle:
+            type: choice
+            values: [-10, -5, 5, 10]
+          expand: false
+          fill_color: [0, 0, 0]
+      - name: jpeg_compression
+        params:
+          quality:
+            type: randint
+            min: 70
+            max: 92
+```
+
+Presets 使用方式：
+
+```bash
+noctilux inspect-config --config configs/presets/classification_light.yaml
+noctilux run --config configs/presets/classification_light.yaml --dry-run
+```
+
+当前 `configs/presets/` 提供的配置：
+
+- `classification_light.yaml`
+- `compression_robustness.yaml`
+- `resize_crop_suite.yaml`
+- `visual_degradation_light.yaml`
+- `all_basic_v021.yaml`

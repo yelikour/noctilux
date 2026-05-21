@@ -1,0 +1,57 @@
+project:
+  name: noctilux_visual_degradation_light
+  seed: 42
+  description: "Light-weight visual degradation preset."
+
+input:
+  mode: folder
+  image_root: examples/images
+  infer_label_from_subdir: true
+  recursive: true
+
+output:
+  root: outputs/example_run
+  preserve_subdirs: true
+  overwrite: false
+  save_format: jpg
+
+runtime:
+  dry_run: false
+  num_workers: 1
+  skip_broken_images: true
+  fail_fast: false
+  show_progress: true
+
+pipelines:
+  - name: visual_degradation_light
+    repeat: 1
+    transforms:
+      - name: gaussian_blur
+        p: 0.3
+        params:
+          radius: 0.8
+      - name: motion_blur
+        p: 0.2
+        params:
+          kernel_size: 5
+          angle:
+            type: choice
+            values: [0, 45, 90]
+      - name: gaussian_noise
+        p: 0.25
+        params:
+          std: 3.0
+      - name: brightness_contrast
+        p: 0.35
+        params:
+          brightness: 0.97
+          contrast: 1.04
+      - name: sharpen
+        p: 0.2
+        params:
+          factor: 1.2
+      - name: jpeg_compression
+        p: 0.3
+        params:
+          quality: 88
+          subsampling: "4:2:0"

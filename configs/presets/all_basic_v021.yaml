@@ -1,0 +1,60 @@
+project:
+  name: noctilux_all_basic_v021
+  seed: 42
+  description: "Balanced smoke-test preset for Noctilux v0.2.1."
+
+input:
+  mode: folder
+  image_root: examples/images
+  infer_label_from_subdir: true
+  recursive: true
+
+output:
+  root: outputs/example_run
+  preserve_subdirs: true
+  overwrite: false
+  save_format: jpg
+  jpg_quality: 90
+
+runtime:
+  dry_run: false
+  num_workers: 1
+  skip_broken_images: true
+  fail_fast: false
+  show_progress: true
+
+pipelines:
+  - name: all_basic_v021
+    repeat: 1
+    transforms:
+      - name: webp_compression
+        p: 0.2
+        params:
+          quality: 82
+      - name: resize_long_edge
+        params:
+          long_edge: 512
+          interpolation: bicubic
+      - name: random_crop_ratio
+        p: 0.5
+        params:
+          ratio: 0.9
+      - name: horizontal_flip
+        p: 0.5
+        params: {}
+      - name: motion_blur
+        p: 0.15
+        params:
+          kernel_size: 5
+          angle:
+            type: choice
+            values: [0, 45, 90]
+      - name: salt_pepper_noise
+        p: 0.15
+        params:
+          amount: 0.01
+          salt_vs_pepper: 0.5
+      - name: sharpen
+        p: 0.2
+        params:
+          factor: 1.2

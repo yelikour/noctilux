@@ -4,6 +4,7 @@ import math
 
 import numpy as np
 from PIL import Image, ImageFilter
+from numpy.lib.stride_tricks import sliding_window_view
 
 from noctilux.registry import register_transform
 from noctilux.transforms.base import BaseTransform
@@ -76,9 +77,5 @@ def _convolve_rgb(source: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     kernel_size = kernel.shape[0]
     pad = kernel_size // 2
     padded = np.pad(source, ((pad, pad), (pad, pad), (0, 0)), mode="edge")
-    output = np.empty_like(source)
-    for y in range(source.shape[0]):
-        for x in range(source.shape[1]):
-            region = padded[y : y + kernel_size, x : x + kernel_size, :]
-            output[y, x, :] = np.tensordot(region, kernel, axes=((0, 1), (0, 1)))
-    return output
+    windows = sliding_window_view(padded, (kernel_size, kernel_size), axis=(0, 1))
+    return np.einsum("hwckl,kl->hwc", windows, kernel, optimize=True)
