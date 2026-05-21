@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.3
+
+- Added `noctilux preview` as a first-class CLI command for single-image preview grids.
+- Refactored preview generation into a reusable `noctilux.preview` module.
+- Kept `scripts/preview_transforms.py` as a compatibility wrapper over the shared preview logic.
+- Added preview CLI and module tests, including non-metadata behavior checks.
+- Improved preview workflow documentation and CLI-oriented examples.
+
 ## 0.2.2
 
 - Added GitHub Actions CI for pytest, ruff, and core CLI checks across Python 3.10, 3.11, and 3.12.

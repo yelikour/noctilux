@@ -86,3 +86,17 @@ noctilux run --config configs/presets/classification_light.yaml --dry-run
 - `resize_crop_suite.yaml`
 - `visual_degradation_light.yaml`
 - `all_basic_v021.yaml`
+
+Preview 行为：
+
+```bash
+noctilux preview \
+  --config configs/examples/full_v020.yaml \
+  --image path/to/image.jpg \
+  --output outputs/previews/preview_grid.jpg \
+  --max-pipelines 4 \
+  --seed 42
+```
+
+- `max_pipelines` 只影响预览时展示多少个 pipeline，不影响批处理执行。
+- `preview` 只做单图视觉检查，不会写 `manifest.csv`、`transform_log.jsonl` 或失败统计文件。

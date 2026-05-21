@@ -3,7 +3,7 @@
 [![CI](https://github.com/yelikour/noctilux/actions/workflows/ci.yml/badge.svg)](https://github.com/yelikour/noctilux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.2-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.3-orange.svg)](CHANGELOG.md)
 
 Noctilux 是一个通用的离线图像批处理与增强工具。它面向训练前的数据准备阶段，使用 YAML 配置定义可复现、可追溯、可扩展的图像处理流水线，并将输出图片与 metadata 一起落盘。
 
@@ -11,7 +11,7 @@ Noctilux 是一个通用的离线图像批处理与增强工具。它面向训�
 
 ## 项目状态
 
-- Current version: `0.2.2`
+- Current version: `0.2.3`
 - Execution: serial in `v0.2.x`
 - Backends: Pillow + NumPy only
 - Not yet supported:
@@ -65,8 +65,8 @@ python -m build
 - Pillow 读取与保存，默认 EXIF orientation + RGB
 - 输出命名、冲突避让、默认不覆盖
 - `manifest.csv`、`transform_log.jsonl`、`failed_images.csv`、`summary.csv`
-- CLI：`inspect-config`、`list-transforms`、`run`、`make-manifest`
-- 单图预览脚本：`scripts/preview_transforms.py`
+- CLI：`inspect-config`、`list-transforms`、`preview`、`run`、`make-manifest`
+- 单图预览：推荐 `noctilux preview`，兼容入口保留 `scripts/preview_transforms.py`
 
 ## Transform 覆盖范围
 
@@ -99,6 +99,8 @@ Preset 配置：
 
 ## 推荐工作流
 
+`inspect-config -> preview -> dry-run -> run -> inspect metadata`
+
 1. 生成 manifest：
 
 ```bash
@@ -112,6 +114,17 @@ noctilux inspect-config --config configs/presets/all_basic_v021.yaml
 ```
 
 3. 预览配置效果：
+
+```bash
+noctilux preview \
+  --config configs/examples/full_v020.yaml \
+  --image examples/images/sample.jpg \
+  --output outputs/previews/preview_grid.jpg \
+  --max-pipelines 8 \
+  --seed 42
+```
+
+兼容入口仍可用，但推荐优先使用 CLI：
 
 ```bash
 python scripts/preview_transforms.py \
@@ -206,6 +219,7 @@ pip install -e ".[dev]"
 python -m pytest
 ruff check src tests scripts
 noctilux list-transforms
+noctilux preview --help
 ```
 
 ## 文档
@@ -226,3 +240,4 @@ noctilux list-transforms
 - 暂无 OpenCV / Albumentations / AugLy 等后端。
 - 尚未实现 detection / segmentation annotation 同步增强。
 - `motion_blur` 仍是轻量实现，侧重可复现和低依赖，不是高性能图像处理后端。
+- `preview` 只做视觉检查，不会生成 `manifest.csv`、`transform_log.jsonl` 或其他批处理 metadata。

@@ -46,6 +46,19 @@ noctilux inspect-config --config configs/presets/all_basic_v021.yaml
 6. 用单图做预览：
 
 ```bash
+noctilux preview \
+  --config configs/examples/full_v020.yaml \
+  --image /tmp/noctilux_demo/images/class_a/sample.jpg \
+  --output /tmp/noctilux_demo/preview_grid.jpg \
+  --max-pipelines 8 \
+  --seed 42
+```
+
+说明：`preview` 只做视觉检查，不会生成 `manifest.csv`、`transform_log.jsonl` 或其他 metadata 文件。你需要显式提供一张实际图片路径。
+
+兼容脚本入口仍可用：
+
+```bash
 python scripts/preview_transforms.py \
   --config configs/examples/full_v020.yaml \
   --image /tmp/noctilux_demo/images/class_a/sample.jpg \

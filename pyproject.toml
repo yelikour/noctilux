@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "noctilux"
-version = "0.2.2"
+version = "0.2.3"
 description = "Offline image batch processing and augmentation toolkit"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"

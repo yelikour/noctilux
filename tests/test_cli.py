@@ -230,3 +230,65 @@ def test_all_basic_v021_preset_supports_cli_dry_run(capsys: pytest.CaptureFixtur
     captured = capsys.readouterr()
     assert exit_code == 0
     assert "total_outputs: 0" in captured.out
+
+
+def test_preview_help_is_available(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit, match="0"):
+        main(["preview", "--help"])
+
+    captured = capsys.readouterr()
+    assert "--config" in captured.out
+    assert "--image" in captured.out
+    assert "--output" in captured.out
+
+
+def test_preview_command_generates_output(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    image_path = tmp_path / "sample.jpg"
+    output_path = tmp_path / "preview_grid.jpg"
+    _make_image(image_path, size=(96, 64))
+
+    exit_code = main(
+        [
+            "preview",
+            "--config",
+            "configs/examples/full_v020.yaml",
+            "--image",
+            str(image_path),
+            "--output",
+            str(output_path),
+            "--max-pipelines",
+            "4",
+            "--seed",
+            "42",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert str(output_path) in captured.out
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_preview_command_missing_image_returns_error(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output_path = tmp_path / "preview_grid.jpg"
+
+    exit_code = main(
+        [
+            "preview",
+            "--config",
+            "configs/examples/full_v020.yaml",
+            "--image",
+            str(tmp_path / "missing.jpg"),
+            "--output",
+            str(output_path),
+        ]
+    )
+
+    capsys.readouterr()
+    assert exit_code == 1
+    assert "Preview input image does not exist" in caplog.text

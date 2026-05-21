@@ -38,5 +38,8 @@ jobs:
       - name: List transforms
         run: noctilux list-transforms
 
+      - name: Check preview help
+        run: noctilux preview --help
+
       - name: Inspect preset config
         run: noctilux inspect-config --config configs/presets/all_basic_v021.yaml

@@ -12,6 +12,7 @@ from noctilux.config import load_config, resolve_config, validate_config
 from noctilux.image_io.loader import describe_image, load_image
 from noctilux.metadata import MetadataRecorder
 from noctilux.pipeline import PipelineExecutionError, build_pipelines
+from noctilux.preview import add_preview_arguments, create_preview_grid
 from noctilux.registry import list_transforms
 from noctilux.saver import OutputSaver
 from noctilux.scanner import build_manifest_from_folder, scan_inputs
@@ -51,6 +52,10 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--dry-run", action="store_true", help="Override config and run without writing outputs.")
     run_parser.set_defaults(func=run_command)
 
+    preview_parser = subparsers.add_parser("preview", help="Generate a preview grid for a single image.")
+    add_preview_arguments(preview_parser)
+    preview_parser.set_defaults(func=preview_command)
+
     manifest_parser = subparsers.add_parser("make-manifest", help="Generate a CSV manifest from a folder.")
     manifest_parser.add_argument("--image-root", required=True, help="Input image root.")
     manifest_parser.add_argument("--output", required=True, help="Output CSV path.")
@@ -89,6 +94,18 @@ def inspect_config_command(args: argparse.Namespace) -> int:
 def list_transforms_command(args: argparse.Namespace) -> int:
     for name in list_transforms():
         print(name)
+    return 0
+
+
+def preview_command(args: argparse.Namespace) -> int:
+    output_path = create_preview_grid(
+        config_path=Path(args.config),
+        image_path=Path(args.image),
+        output_path=Path(args.output),
+        max_pipelines=args.max_pipelines,
+        seed=args.seed,
+    )
+    print(output_path)
     return 0
 
 

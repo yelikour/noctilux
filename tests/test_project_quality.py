@@ -21,6 +21,7 @@ def test_readme_key_config_paths_exist() -> None:
         Path("configs/presets/all_basic_v021.yaml"),
         Path("configs/presets/classification_light.yaml"),
         Path("configs/presets/compression_robustness.yaml"),
+        Path("scripts/preview_transforms.py"),
     ]
     for path in paths:
         assert path.exists(), path
@@ -47,4 +48,5 @@ def test_ci_workflow_exists_and_runs_quality_checks() -> None:
     text = workflow_path.read_text(encoding="utf-8")
     assert "python -m pytest" in text
     assert "ruff check src tests scripts" in text
+    assert "noctilux preview --help" in text
     assert "configs/presets/all_basic_v021.yaml" in text
