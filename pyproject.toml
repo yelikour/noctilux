@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "noctilux"
+version = "0.1.2"
+description = "Offline image batch processing and augmentation toolkit"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+  { name = "Noctilux Contributors" }
+]
+dependencies = [
+  "numpy",
+  "pandas",
+  "pillow",
+  "pyyaml",
+  "tqdm",
+]
+
+[project.scripts]
+noctilux = "noctilux.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"

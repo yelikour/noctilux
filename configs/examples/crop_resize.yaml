@@ -1,0 +1,34 @@
+project:
+  name: noctilux_crop_resize
+  seed: 42
+  description: "Center crop then resize."
+
+input:
+  mode: folder
+  image_root: examples/images
+  infer_label_from_subdir: true
+  recursive: true
+
+output:
+  root: outputs/example_run
+  preserve_subdirs: true
+  overwrite: false
+  save_format: jpg
+
+runtime:
+  dry_run: false
+  num_workers: 1
+  skip_broken_images: true
+  fail_fast: false
+  show_progress: true
+
+pipelines:
+  - name: crop_resize_512
+    transforms:
+      - name: center_crop_ratio
+        params:
+          ratio: 0.75
+      - name: resize_long_edge
+        params:
+          long_edge: 512
+          interpolation: bicubic

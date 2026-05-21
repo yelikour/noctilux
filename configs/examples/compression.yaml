@@ -1,0 +1,43 @@
+project:
+  name: noctilux_compression
+  seed: 42
+  description: "Generate JPEG variants with different compression levels."
+
+input:
+  mode: folder
+  image_root: examples/images
+  infer_label_from_subdir: true
+  recursive: true
+
+output:
+  root: outputs/example_run
+  preserve_subdirs: true
+  overwrite: false
+  save_format: jpg
+
+runtime:
+  dry_run: false
+  num_workers: 1
+  skip_broken_images: true
+  fail_fast: false
+  show_progress: true
+
+pipelines:
+  - name: jpeg_q95
+    transforms:
+      - name: jpeg_compression
+        params:
+          quality: 95
+          subsampling: "4:4:4"
+  - name: jpeg_q80
+    transforms:
+      - name: jpeg_compression
+        params:
+          quality: 80
+          subsampling: "4:2:0"
+  - name: jpeg_q60
+    transforms:
+      - name: jpeg_compression
+        params:
+          quality: 60
+          subsampling: "4:2:0"

@@ -1,0 +1,37 @@
+project:
+  name: noctilux_blur_noise
+  seed: 42
+  description: "Blur, noise, and brightness/contrast adjustment."
+
+input:
+  mode: folder
+  image_root: examples/images
+  infer_label_from_subdir: true
+  recursive: true
+
+output:
+  root: outputs/example_run
+  preserve_subdirs: true
+  overwrite: false
+  save_format: jpg
+
+runtime:
+  dry_run: false
+  num_workers: 1
+  skip_broken_images: true
+  fail_fast: false
+  show_progress: true
+
+pipelines:
+  - name: blur_noise_color
+    transforms:
+      - name: gaussian_blur
+        params:
+          radius: 1.5
+      - name: gaussian_noise
+        params:
+          std: 6.0
+      - name: brightness_contrast
+        params:
+          brightness: 1.05
+          contrast: 1.1

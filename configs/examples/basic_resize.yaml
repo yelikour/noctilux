@@ -1,0 +1,33 @@
+project:
+  name: noctilux_basic_resize
+  seed: 42
+  description: "Resize input images to a 512px long edge."
+
+input:
+  mode: folder
+  image_root: examples/images
+  infer_label_from_subdir: true
+  recursive: true
+
+output:
+  root: outputs/example_run
+  preserve_subdirs: true
+  overwrite: false
+  save_format: jpg
+  jpg_quality: 95
+
+runtime:
+  dry_run: false
+  num_workers: 1
+  skip_broken_images: true
+  fail_fast: false
+  show_progress: true
+
+pipelines:
+  - name: resize_512
+    repeat: 1
+    transforms:
+      - name: resize_long_edge
+        params:
+          long_edge: 512
+          interpolation: bicubic
