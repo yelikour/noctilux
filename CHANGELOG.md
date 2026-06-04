@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.3
+
+- Aligned Python version classifiers with CI coverage (removed 3.13, kept 3.10–3.12).
+- Updated PROJECT_GUIDE.md roadmap to match actual release history.
+- Added `docs/public_readiness.md` checklist for future repository visibility change.
+- Updated `docs/agent_handoff.md` with current version, Python support scope, and public readiness reference.
+- Updated `README.md` with tested Python versions and public readiness link.
+- Added documentation consistency tests to `tests/test_project_quality.py`.
+
 ## 0.3.2
 
 - Added agent handoff documentation for future maintainers and automation agents.

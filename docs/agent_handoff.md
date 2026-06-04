@@ -62,11 +62,24 @@ Metadata output structure from `noctilux run`:
 - `v0.3.0`: `noctilux report` CLI; tag points to the pre-fix commit and tag CI failure is known.
 - `v0.3.1`: report compatibility fix for Python 3.10; corrected report release.
 - `v0.3.2`: agent handoff documentation and contributor guidance.
+- `v0.3.3`: Python version classifier alignment, roadmap correction, public-readiness checklist, documentation consistency tests.
 
 Important tag state:
 
 - `v0.3.0` is intentionally unchanged and still points to `ea4905a`; do not move, delete, or force-push it.
 - `v0.3.1` points to `f495afd` and is the corrected report release.
+
+## Python Version Support
+
+- Officially tested versions: Python 3.10, 3.11, 3.12 (matching CI matrix).
+- `pyproject.toml` classifiers must not list a Python version that is not covered by CI.
+- Python 3.13 may work locally but is not part of CI support yet.
+
+## Public Readiness
+
+- Before switching the repository to public, review `docs/public_readiness.md`.
+- Do not publish to PyPI without explicit user approval.
+- Do not create GitHub Releases without explicit user approval.
 
 ## Development Rules
 
@@ -118,8 +131,8 @@ noctilux report \
 
 ## Suggested Roadmap
 
-- `v0.3.3`: public readiness polish.
-- `v0.4.0`: optional OpenCV backend.
+- `v0.3.3`: documentation consistency and public-readiness polish.
+- `v0.4.0`: optional backend exploration, e.g. OpenCV backend.
 - `v0.5.0`: parallel execution and resume support.
 - `v0.6.0`: detection and segmentation annotation synchronization.
 - Adjust the roadmap when the user gives a more specific task.

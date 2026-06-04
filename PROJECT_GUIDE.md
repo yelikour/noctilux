@@ -1816,85 +1816,96 @@ YAML 调用：
 
 ## 20. Roadmap
 
-### v0.1.0
+以下是建议路线，实际版本可能根据维护需要调整。
 
-目标：最小可用版本。
+### v0.1.x（已完成）
+
+目标：MVP 与稳定性。
 
 功能：
 
-* folder input
-* manifest input
+* folder input / manifest input
 * YAML config
-* registry
-* pipeline
-* JPEG compression
-* resize
-* crop
-* blur
-* noise
-* manifest output
-* transform log
-* CLI run
-* CLI preview
+* registry / pipeline
+* 6 个基础 transform（JPEG compression、resize、crop、blur、noise、brightness/contrast）
+* manifest.csv / transform_log.jsonl / failed_images.csv
+* CLI run / preview
+* 干跑、输出冲突避让、失败记录
 
 ---
 
-### v0.2.0
+### v0.2.x（已完成）
 
-目标：常见增强完整化。
+目标：常见增强完整化、CI、quickstart。
 
 新增：
 
-* random parameter
-* transform probability
-* repeat
-* multi-pipeline
-* webp
-* double jpeg
-* color transforms
-* random crop
-* summary report
+* random parameter、transform probability、repeat、multi-pipeline
+* 21 个常见 transform（compression、resize、crop、geometric、blur、noise、color）
+* reusable presets
+* `noctilux preview` CLI
+* GitHub Actions CI（Python 3.10–3.12）
+* tracked synthetic sample image + runnable quickstart workflow
+* summary.csv
 
 ---
 
-### v0.3.0
+### v0.3.x（已完成）
 
-目标：后端扩展。
+目标：metadata 报告与文档一致性。
 
-新增：
-
-* OpenCV backend
-* Albumentations backend
-* imagecorruptions backend
-* AugLy backend
-* optional dependencies
+* v0.3.0：`noctilux report` CLI（Markdown + 可选 CSV 报告）
+* v0.3.1：Python 3.10 report 兼容性修复
+* v0.3.2：agent handoff 文档
+* v0.3.3：Python 版本声明对齐 CI、路线图修正、public-readiness checklist
 
 ---
 
-### v0.4.0
+### v0.4.0（计划中）
+
+目标：optional backend 探索。
+
+计划：
+
+* OpenCV backend（optional dependency）
+* 考虑 Albumentations / imagecorruptions / AugLy 等 backend
+* 所有外部 backend 为 optional dependencies，主流程不强依赖
+
+---
+
+### v0.5.0（计划中）
+
+目标：并行处理与恢复。
+
+计划：
+
+* 多进程并行执行
+* 中断恢复（resume）
+
+---
+
+### v0.6.0（计划中）
 
 目标：任务感知。
 
-新增：
+计划：
 
-* classification preset
-* detection annotation placeholder
-* segmentation mask placeholder
+* detection annotation 同步（COCO / VOC）
+* segmentation mask 同步
 * class-balanced generation
 
 ---
 
-### v0.5.0
+### v0.7.0+（远期）
 
-目标：真实场景后处理模拟。
+目标：真实场景后处理模拟与高级扩展。
 
-新增：
+可能新增：
 
-* social media transform
-* screenshot-like transform
-* document export transform
+* social media / screenshot / document export 等 platform-like transform
 * frequency transforms
-* preview report
+* occlusion transforms
+* detection / segmentation annotation 完整支持
 
 ---
 

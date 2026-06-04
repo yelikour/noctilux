@@ -278,6 +278,8 @@ noctilux preview --help
 noctilux report --help
 ```
 
+Officially tested Python versions: 3.10, 3.11, 3.12. Python 3.13 may work locally but is not part of CI support yet.
+
 ## 文档
 
 - [docs/getting_started.md](docs/getting_started.md)
@@ -286,6 +288,7 @@ noctilux report --help
 - [docs/output_formats.md](docs/output_formats.md)
 - [docs/adding_new_transform.md](docs/adding_new_transform.md)
 - [docs/agent_handoff.md](docs/agent_handoff.md)
+- [docs/public_readiness.md](docs/public_readiness.md)
 
 ## 新增 transform
 

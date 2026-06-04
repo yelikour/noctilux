@@ -58,3 +58,42 @@ def test_ci_workflow_exists_and_runs_quality_checks() -> None:
     assert "configs/examples/quickstart_sample.yaml" in text
     assert "noctilux report" in text
     assert "test -s /tmp/noctilux_report.md" in text
+
+
+def test_pyproject_classifiers_match_ci_python_versions() -> None:
+    pyproject_path = Path("pyproject.toml")
+    text = pyproject_path.read_text(encoding="utf-8")
+    assert "Programming Language :: Python :: 3.10" in text
+    assert "Programming Language :: Python :: 3.11" in text
+    assert "Programming Language :: Python :: 3.12" in text
+    assert "Programming Language :: Python :: 3.13" not in text
+
+
+def test_ci_matrix_covers_supported_versions() -> None:
+    ci_path = Path(".github/workflows/ci.yml")
+    text = ci_path.read_text(encoding="utf-8")
+    assert '"3.10"' in text
+    assert '"3.11"' in text
+    assert '"3.12"' in text
+
+
+def test_public_readiness_doc_exists() -> None:
+    assert Path("docs/public_readiness.md").exists()
+
+
+def test_readme_mentions_public_readiness() -> None:
+    text = Path("README.md").read_text(encoding="utf-8")
+    assert "public_readiness.md" in text
+
+
+def test_agent_handoff_mentions_public_readiness() -> None:
+    text = Path("docs/agent_handoff.md").read_text(encoding="utf-8")
+    assert "public_readiness.md" in text
+
+
+def test_project_guide_roadmap_mentions_report() -> None:
+    text = Path("PROJECT_GUIDE.md").read_text(encoding="utf-8")
+    assert "report" in text.lower()
+    v030_section = text[text.find("v0.3.x") : text.find("v0.4.0")] if "v0.3.x" in text else ""
+    assert v030_section, "PROJECT_GUIDE.md should have a v0.3.x section"
+    assert "report" in v030_section.lower()
