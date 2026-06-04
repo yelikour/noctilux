@@ -45,3 +45,11 @@ sample_id,image_path,pipeline_name,repeat_index,seed,stage,error
 ```csv
 pipeline_name,total,success,failed
 ```
+
+## report.md
+
+`noctilux report` 读取 `manifest.csv`、`summary.csv`、`failed_images.csv` 和 `transform_log.jsonl`，生成轻量 Markdown 汇总。报告包含总数、成功率、pipeline 汇总、输出格式、尺寸统计、失败阶段、错误信息和 transform 使用统计。
+
+## summary_report.csv
+
+如果传入 `--csv-output`，`noctilux report` 会额外写出 `summary_report.csv`，用于脚本化读取关键统计值。

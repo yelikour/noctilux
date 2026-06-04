@@ -56,3 +56,5 @@ def test_ci_workflow_exists_and_runs_quality_checks() -> None:
     assert "test -s /tmp/noctilux_ci_preview.jpg" in text
     assert "configs/presets/all_basic_v021.yaml" in text
     assert "configs/examples/quickstart_sample.yaml" in text
+    assert "noctilux report" in text
+    assert "test -s /tmp/noctilux_report.md" in text

@@ -59,3 +59,11 @@ jobs:
 
       - name: Dry-run quickstart sample config
         run: noctilux run --config configs/examples/quickstart_sample.yaml --dry-run
+
+      - name: Report smoke test
+        run: |
+          noctilux run --config configs/examples/quickstart_sample.yaml
+          noctilux report \
+            --metadata outputs/quickstart_sample/metadata \
+            --output /tmp/noctilux_report.md
+          test -s /tmp/noctilux_report.md

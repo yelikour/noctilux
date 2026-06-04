@@ -3,7 +3,7 @@
 [![CI](https://github.com/yelikour/noctilux/actions/workflows/ci.yml/badge.svg)](https://github.com/yelikour/noctilux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.4-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.3.0-orange.svg)](CHANGELOG.md)
 
 Noctilux 是一个通用的离线图像批处理与增强工具。它面向训练前的数据准备阶段，使用 YAML 配置定义可复现、可追溯、可扩展的图像处理流水线，并将输出图片与 metadata 一起落盘。
 
@@ -11,8 +11,8 @@ Noctilux 是一个通用的离线图像批处理与增强工具。它面向训�
 
 ## 项目状态
 
-- Current version: `0.2.4`
-- Execution: serial in `v0.2.x`
+- Current version: `0.3.0`
+- Execution: serial in `v0.3.x`
 - Backends: Pillow + NumPy only
 - Not yet supported:
   - parallel processing
@@ -65,7 +65,7 @@ python -m build
 - Pillow 读取与保存，默认 EXIF orientation + RGB
 - 输出命名、冲突避让、默认不覆盖
 - `manifest.csv`、`transform_log.jsonl`、`failed_images.csv`、`summary.csv`
-- CLI：`inspect-config`、`list-transforms`、`preview`、`run`、`make-manifest`
+- CLI：`inspect-config`、`list-transforms`、`preview`、`run`、`report`、`make-manifest`
 - 单图预览：推荐 `noctilux preview`，兼容入口保留 `scripts/preview_transforms.py`
 
 ## Quickstart
@@ -87,12 +87,13 @@ noctilux preview \
 noctilux run \
   --config configs/examples/quickstart_sample.yaml \
   --dry-run
-```
 
-如果你想实际生成一张处理后的输出图，可以直接运行：
+noctilux run \
+  --config configs/examples/quickstart_sample.yaml
 
-```bash
-noctilux run --config configs/examples/quickstart_sample.yaml
+noctilux report \
+  --metadata outputs/quickstart_sample/metadata \
+  --output outputs/quickstart_sample/report.md
 ```
 
 说明：
@@ -100,6 +101,8 @@ noctilux run --config configs/examples/quickstart_sample.yaml
 - `examples/images/sample.jpg` 是无隐私、无版权争议的合成样例图。
 - `preview` 只生成预览 grid，不写 metadata。
 - `run` 会生成输出图片和 metadata。
+- `report` 读取已有 metadata，不会重新处理图片。
+- `report` 是轻量 Markdown 汇总，不是可视化 dashboard。
 - `outputs/` 是运行产物，已被 `.gitignore` 忽略，不会提交到 Git。
 
 ## Transform 覆盖范围
@@ -133,7 +136,7 @@ Preset 配置：
 
 ## 推荐工作流
 
-`inspect-config -> preview -> dry-run -> run -> inspect metadata`
+`inspect-config -> preview -> dry-run -> run -> report -> inspect metadata`
 
 1. 生成 manifest：
 
@@ -187,12 +190,21 @@ noctilux run --config configs/presets/all_basic_v021.yaml
 noctilux run --config configs/examples/quickstart_sample.yaml
 ```
 
-6. 查看 metadata：
+6. 生成 metadata 报告：
+
+```bash
+noctilux report \
+  --metadata outputs/quickstart_sample/metadata \
+  --output outputs/quickstart_sample/report.md
+```
+
+7. 查看 metadata：
 
 - `outputs/.../metadata/manifest.csv`
 - `outputs/.../metadata/transform_log.jsonl`
 - `outputs/.../metadata/failed_images.csv`
 - `outputs/.../metadata/summary.csv`
+- `outputs/.../report.md`
 
 ## 输出与 metadata
 
@@ -212,6 +224,7 @@ metadata 说明：
 - `transform_log.jsonl`：每个输出样本一条 JSON，记录 transform 顺序、是否执行、实际采样参数和输入输出信息。
 - `failed_images.csv`：记录失败样本的 `pipeline_name`、`repeat_index`、`seed`、`stage` 和错误信息。
 - `summary.csv`：按 pipeline 聚合统计总数、成功数、失败数。
+- `report.md`：由 `noctilux report` 生成的轻量 Markdown 汇总。
 
 ## 第一个真实运行示例
 
@@ -260,6 +273,7 @@ python -m pytest
 ruff check src tests scripts
 noctilux list-transforms
 noctilux preview --help
+noctilux report --help
 ```
 
 ## 文档
@@ -276,7 +290,7 @@ noctilux preview --help
 
 ## 当前限制
 
-- `num_workers` 仍然只是未来并行接口占位，`v0.2.x` 仍为串行执行。
+- `num_workers` 仍然只是未来并行接口占位，`v0.3.x` 仍为串行执行。
 - 暂无 OpenCV / Albumentations / AugLy 等后端。
 - 尚未实现 detection / segmentation annotation 同步增强。
 - `motion_blur` 仍是轻量实现，侧重可复现和低依赖，不是高性能图像处理后端。

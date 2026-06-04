@@ -81,19 +81,24 @@ noctilux run --config configs/examples/quickstart_sample.yaml --dry-run
 noctilux run --config configs/examples/quickstart_sample.yaml
 ```
 
-如果只想跑仓库内样例图的最小流程：
+9. 生成 metadata 报告：
 
 ```bash
-noctilux run --config configs/examples/quickstart_sample.yaml
+noctilux report \
+  --metadata outputs/quickstart_sample/metadata \
+  --output outputs/quickstart_sample/report.md
 ```
 
-9. 查看输出：
+`report` 只读取 run 产生的 metadata，不会重新处理图片。
+
+10. 查看输出：
 
 - `outputs/.../images/`
 - `outputs/.../metadata/manifest.csv`
 - `outputs/.../metadata/transform_log.jsonl`
 - `outputs/.../metadata/failed_images.csv`
 - `outputs/.../metadata/summary.csv`
+- `outputs/.../report.md`
 
 metadata 文件用途：
 
@@ -101,6 +106,7 @@ metadata 文件用途：
 - `transform_log.jsonl`：每张输出图的详细 transform 执行记录。
 - `failed_images.csv`：失败样本、阶段、pipeline、seed 和错误信息。
 - `summary.csv`：按 pipeline 汇总成功/失败数量。
+- `report.md`：轻量 Markdown 汇总，适合快速检查本次 run 的结果。
 
 10. 本地构建分发文件：
 

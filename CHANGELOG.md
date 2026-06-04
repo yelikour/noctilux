@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- Added `noctilux report` CLI command.
+- Added metadata report generation from Noctilux run outputs.
+- Added Markdown and optional CSV report outputs.
+- Added report tests and CI smoke test.
+- Updated quickstart documentation with report generation.
+
 ## 0.2.4
 
 - Added a tracked synthetic sample image for runnable quickstart and preview workflows.

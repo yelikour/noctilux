@@ -14,6 +14,7 @@ from noctilux.metadata import MetadataRecorder
 from noctilux.pipeline import PipelineExecutionError, build_pipelines
 from noctilux.preview import add_preview_arguments, create_preview_grid
 from noctilux.registry import list_transforms
+from noctilux.report import generate_report
 from noctilux.saver import OutputSaver
 from noctilux.scanner import build_manifest_from_folder, scan_inputs
 
@@ -56,6 +57,13 @@ def build_parser() -> argparse.ArgumentParser:
     add_preview_arguments(preview_parser)
     preview_parser.set_defaults(func=preview_command)
 
+    report_parser = subparsers.add_parser("report", help="Generate a Markdown report from metadata.")
+    report_parser.add_argument("--metadata", required=True, help="Metadata directory from a noctilux run.")
+    report_parser.add_argument("--output", required=True, help="Markdown report output path.")
+    report_parser.add_argument("--csv-output", default=None, help="Optional CSV summary output path.")
+    report_parser.add_argument("--overwrite", action="store_true", help="Allow overwriting report output files.")
+    report_parser.set_defaults(func=report_command)
+
     manifest_parser = subparsers.add_parser("make-manifest", help="Generate a CSV manifest from a folder.")
     manifest_parser.add_argument("--image-root", required=True, help="Input image root.")
     manifest_parser.add_argument("--output", required=True, help="Output CSV path.")
@@ -87,7 +95,7 @@ def inspect_config_command(args: argparse.Namespace) -> int:
     print(f"transforms: {transform_count}")
     print(f"dry_run: {config['runtime']['dry_run']}")
     print(f"overwrite: {config['output']['overwrite']}")
-    print(f"num_workers: {config['runtime']['num_workers']} (serial execution in v0.2.x)")
+    print(f"num_workers: {config['runtime']['num_workers']} (serial execution in v0.3.x)")
     return 0
 
 
@@ -109,6 +117,17 @@ def preview_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def report_command(args: argparse.Namespace) -> int:
+    output_path = generate_report(
+        metadata_dir=Path(args.metadata),
+        output_path=Path(args.output),
+        csv_output_path=Path(args.csv_output) if args.csv_output else None,
+        overwrite=args.overwrite,
+    )
+    print(output_path)
+    return 0
+
+
 def run_command(args: argparse.Namespace) -> int:
     config = _load_and_validate(args.config)
     if getattr(args, "dry_run", False):
@@ -125,7 +144,7 @@ def run_command(args: argparse.Namespace) -> int:
     pipelines = build_pipelines(config)
 
     if config["runtime"]["num_workers"] > 1:
-        LOGGER.warning("num_workers is currently reserved and execution is still serial in v0.2.x.")
+        LOGGER.warning("num_workers is currently reserved and execution is still serial in v0.3.x.")
 
     if config["runtime"]["dry_run"]:
         planned_outputs = sum(pipeline.repeat for pipeline in pipelines) * len(samples)
