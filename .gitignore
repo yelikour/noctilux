@@ -21,5 +21,6 @@ htmlcov/
 .agents/
 .codex/
 outputs/
-examples/images/
+examples/images/*
+!examples/images/sample.jpg
 *.log

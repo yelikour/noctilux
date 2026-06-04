@@ -41,5 +41,21 @@ jobs:
       - name: Check preview help
         run: noctilux preview --help
 
+      - name: Preview smoke test
+        run: |
+          noctilux preview \
+            --config configs/examples/full_v020.yaml \
+            --image examples/images/sample.jpg \
+            --output /tmp/noctilux_ci_preview.jpg \
+            --max-pipelines 4 \
+            --seed 42
+          test -s /tmp/noctilux_ci_preview.jpg
+
       - name: Inspect preset config
         run: noctilux inspect-config --config configs/presets/all_basic_v021.yaml
+
+      - name: Inspect quickstart sample config
+        run: noctilux inspect-config --config configs/examples/quickstart_sample.yaml
+
+      - name: Dry-run quickstart sample config
+        run: noctilux run --config configs/examples/quickstart_sample.yaml --dry-run

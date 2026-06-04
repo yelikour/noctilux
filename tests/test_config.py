@@ -66,6 +66,7 @@ def test_example_config_passes_validation() -> None:
 @pytest.mark.parametrize(
     "config_path",
     [
+        "configs/examples/quickstart_sample.yaml",
         "configs/examples/compression_plus.yaml",
         "configs/examples/resize_plus.yaml",
         "configs/examples/crop_plus.yaml",
@@ -87,6 +88,7 @@ def test_v020_example_configs_pass_validation(config_path: str) -> None:
 def test_readme_referenced_config_paths_exist() -> None:
     paths = [
         "configs/examples/full_v020.yaml",
+        "configs/examples/quickstart_sample.yaml",
         "configs/presets/classification_light.yaml",
         "configs/presets/compression_robustness.yaml",
         "configs/presets/resize_crop_suite.yaml",

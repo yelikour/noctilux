@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.4
+
+- Added a tracked synthetic sample image for runnable quickstart and preview workflows.
+- Updated README and docs so preview and dry-run examples can be executed directly in the repository.
+- Added CI preview smoke testing with `examples/images/sample.jpg`.
+- Added tests for sample image availability, readability, size, and ignore-rule consistency.
+- Added a dedicated `configs/examples/quickstart_sample.yaml` for lightweight local and CI checks.
+
 ## 0.2.3
 
 - Added `noctilux preview` as a first-class CLI command for single-image preview grids.

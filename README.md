@@ -3,7 +3,7 @@
 [![CI](https://github.com/yelikour/noctilux/actions/workflows/ci.yml/badge.svg)](https://github.com/yelikour/noctilux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.3-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.4-orange.svg)](CHANGELOG.md)
 
 Noctilux 是一个通用的离线图像批处理与增强工具。它面向训练前的数据准备阶段，使用 YAML 配置定义可复现、可追溯、可扩展的图像处理流水线，并将输出图片与 metadata 一起落盘。
 
@@ -11,7 +11,7 @@ Noctilux 是一个通用的离线图像批处理与增强工具。它面向训�
 
 ## 项目状态
 
-- Current version: `0.2.3`
+- Current version: `0.2.4`
 - Execution: serial in `v0.2.x`
 - Backends: Pillow + NumPy only
 - Not yet supported:
@@ -67,6 +67,40 @@ python -m build
 - `manifest.csv`、`transform_log.jsonl`、`failed_images.csv`、`summary.csv`
 - CLI：`inspect-config`、`list-transforms`、`preview`、`run`、`make-manifest`
 - 单图预览：推荐 `noctilux preview`，兼容入口保留 `scripts/preview_transforms.py`
+
+## Quickstart
+
+仓库内置了一个最小可运行示例图片：`examples/images/sample.jpg`。
+
+```bash
+pip install -e ".[dev]"
+
+noctilux list-transforms
+
+noctilux preview \
+  --config configs/examples/full_v020.yaml \
+  --image examples/images/sample.jpg \
+  --output outputs/previews/sample_preview_grid.jpg \
+  --max-pipelines 6 \
+  --seed 42
+
+noctilux run \
+  --config configs/examples/quickstart_sample.yaml \
+  --dry-run
+```
+
+如果你想实际生成一张处理后的输出图，可以直接运行：
+
+```bash
+noctilux run --config configs/examples/quickstart_sample.yaml
+```
+
+说明：
+
+- `examples/images/sample.jpg` 是无隐私、无版权争议的合成样例图。
+- `preview` 只生成预览 grid，不写 metadata。
+- `run` 会生成输出图片和 metadata。
+- `outputs/` 是运行产物，已被 `.gitignore` 忽略，不会提交到 Git。
 
 ## Transform 覆盖范围
 
@@ -145,6 +179,12 @@ noctilux run --config configs/presets/all_basic_v021.yaml --dry-run
 
 ```bash
 noctilux run --config configs/presets/all_basic_v021.yaml
+```
+
+或使用仓库内置 quickstart 配置直接处理 `sample.jpg`：
+
+```bash
+noctilux run --config configs/examples/quickstart_sample.yaml
 ```
 
 6. 查看 metadata：

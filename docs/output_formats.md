@@ -10,6 +10,11 @@ outputs/example_run/
 └── previews/
 ```
 
+## Preview vs Run
+
+- `noctilux preview`：只生成一张预览 grid 图片，用于快速做视觉检查；不会生成 `manifest.csv`、`transform_log.jsonl`、`failed_images.csv` 或 `summary.csv`。
+- `noctilux run`：执行完整离线批处理，生成输出图片和 metadata。
+
 ## manifest.csv
 
 至少包含：
@@ -32,7 +37,7 @@ sample_id,original_path,output_path,pipeline_name,repeat_index,input_width,input
 ## failed_images.csv
 
 ```csv
-sample_id,image_path,error
+sample_id,image_path,pipeline_name,repeat_index,seed,stage,error
 ```
 
 ## summary.csv

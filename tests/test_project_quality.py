@@ -18,7 +18,9 @@ def test_all_example_and_preset_configs_validate() -> None:
 def test_readme_key_config_paths_exist() -> None:
     paths = [
         Path("configs/examples/full_v020.yaml"),
+        Path("configs/examples/quickstart_sample.yaml"),
         Path("configs/presets/all_basic_v021.yaml"),
+        Path("examples/images/sample.jpg"),
         Path("configs/presets/classification_light.yaml"),
         Path("configs/presets/compression_robustness.yaml"),
         Path("scripts/preview_transforms.py"),
@@ -49,4 +51,8 @@ def test_ci_workflow_exists_and_runs_quality_checks() -> None:
     assert "python -m pytest" in text
     assert "ruff check src tests scripts" in text
     assert "noctilux preview --help" in text
+    assert "noctilux preview" in text
+    assert "examples/images/sample.jpg" in text
+    assert "test -s /tmp/noctilux_ci_preview.jpg" in text
     assert "configs/presets/all_basic_v021.yaml" in text
+    assert "configs/examples/quickstart_sample.yaml" in text

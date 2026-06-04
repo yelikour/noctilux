@@ -25,6 +25,8 @@ Image.new("RGB", (640, 480), color=(120, 80, 40)).save(root / "sample.jpg")
 PY
 ```
 
+仓库里也自带一个最小可运行样例图：`examples/images/sample.jpg`。
+
 3. 查看可用 transforms：
 
 ```bash
@@ -48,13 +50,13 @@ noctilux inspect-config --config configs/presets/all_basic_v021.yaml
 ```bash
 noctilux preview \
   --config configs/examples/full_v020.yaml \
-  --image /tmp/noctilux_demo/images/class_a/sample.jpg \
+  --image examples/images/sample.jpg \
   --output /tmp/noctilux_demo/preview_grid.jpg \
   --max-pipelines 8 \
   --seed 42
 ```
 
-说明：`preview` 只做视觉检查，不会生成 `manifest.csv`、`transform_log.jsonl` 或其他 metadata 文件。你需要显式提供一张实际图片路径。
+说明：`preview` 只做视觉检查，不会生成 `manifest.csv`、`transform_log.jsonl` 或其他 metadata 文件。你需要显式提供一张实际图片路径；仓库内的 `examples/images/sample.jpg` 就可以直接使用。
 
 兼容脚本入口仍可用：
 
@@ -70,13 +72,19 @@ python scripts/preview_transforms.py \
 7. 先 dry-run：
 
 ```bash
-noctilux run --config configs/presets/all_basic_v021.yaml --dry-run
+noctilux run --config configs/examples/quickstart_sample.yaml --dry-run
 ```
 
 8. 运行批处理：
 
 ```bash
-noctilux run --config configs/presets/all_basic_v021.yaml
+noctilux run --config configs/examples/quickstart_sample.yaml
+```
+
+如果只想跑仓库内样例图的最小流程：
+
+```bash
+noctilux run --config configs/examples/quickstart_sample.yaml
 ```
 
 9. 查看输出：

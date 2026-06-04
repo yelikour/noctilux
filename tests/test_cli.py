@@ -221,7 +221,7 @@ def test_full_v020_example_supports_cli_dry_run(capsys: pytest.CaptureFixture[st
 
     captured = capsys.readouterr()
     assert exit_code == 0
-    assert "total_outputs: 0" in captured.out
+    assert "total_outputs: 1" in captured.out
 
 
 def test_all_basic_v021_preset_supports_cli_dry_run(capsys: pytest.CaptureFixture[str]) -> None:
@@ -229,7 +229,15 @@ def test_all_basic_v021_preset_supports_cli_dry_run(capsys: pytest.CaptureFixtur
 
     captured = capsys.readouterr()
     assert exit_code == 0
-    assert "total_outputs: 0" in captured.out
+    assert "total_outputs: 1" in captured.out
+
+
+def test_quickstart_sample_config_supports_cli_dry_run(capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code = main(["run", "--config", "configs/examples/quickstart_sample.yaml", "--dry-run"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "total_outputs:" in captured.out
 
 
 def test_preview_help_is_available(capsys: pytest.CaptureFixture[str]) -> None:

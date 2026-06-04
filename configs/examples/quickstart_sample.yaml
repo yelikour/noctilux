@@ -1,0 +1,33 @@
+project:
+  name: noctilux_quickstart_sample
+  seed: 42
+  description: "Minimal runnable sample config for README and CI smoke checks."
+
+input:
+  mode: folder
+  image_root: examples/images
+  infer_label_from_subdir: false
+  recursive: true
+
+output:
+  root: outputs/quickstart_sample
+  preserve_subdirs: true
+  overwrite: false
+  save_format: jpg
+  jpg_quality: 95
+
+runtime:
+  dry_run: false
+  num_workers: 1
+  skip_broken_images: true
+  fail_fast: false
+  show_progress: true
+
+pipelines:
+  - name: resize_512
+    repeat: 1
+    transforms:
+      - name: resize_long_edge
+        params:
+          long_edge: 512
+          interpolation: bicubic
