@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+- Added agent handoff documentation for future maintainers and automation agents.
+- Documented current project scope, release/tag state, validation commands, smoke tests, and development rules.
+- Updated README contributor guidance to point agents and contributors to the handoff document.
+
 ## 0.3.1
 
 - Fixed Python 3.10 compatibility in report timestamp generation.
