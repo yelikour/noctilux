@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+- Fixed Python 3.10 compatibility in report timestamp generation.
+- Kept the already-published `v0.3.0` tag unchanged.
+- Published `v0.3.1` as the corrected report release.
+
 ## 0.3.0
 
 - Added `noctilux report` CLI command.

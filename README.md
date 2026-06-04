@@ -3,7 +3,7 @@
 [![CI](https://github.com/yelikour/noctilux/actions/workflows/ci.yml/badge.svg)](https://github.com/yelikour/noctilux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.3.0-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.3.1-orange.svg)](CHANGELOG.md)
 
 Noctilux 是一个通用的离线图像批处理与增强工具。它面向训练前的数据准备阶段，使用 YAML 配置定义可复现、可追溯、可扩展的图像处理流水线，并将输出图片与 metadata 一起落盘。
 
@@ -11,7 +11,7 @@ Noctilux 是一个通用的离线图像批处理与增强工具。它面向训�
 
 ## 项目状态
 
-- Current version: `0.3.0`
+- Current version: `0.3.1`
 - Execution: serial in `v0.3.x`
 - Backends: Pillow + NumPy only
 - Not yet supported:
