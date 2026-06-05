@@ -1,0 +1,49 @@
+project:
+  name: opencv_backend_demo
+  seed: 42
+
+input:
+  mode: folder
+  image_root: examples/images
+  infer_label_from_subdir: false
+
+output:
+  root: outputs/opencv_backend_demo
+
+runtime:
+  dry_run: false
+  num_workers: 1
+  skip_broken_images: true
+
+pipelines:
+  - name: opencv_resize_exact
+    transforms:
+      - name: resize_exact
+        backend: opencv
+        params:
+          width: 224
+          height: 224
+          interpolation: bicubic
+
+  - name: opencv_resize_long_edge
+    transforms:
+      - name: resize_long_edge
+        backend: opencv
+        params:
+          long_edge: 512
+          interpolation: lanczos
+
+  - name: opencv_gaussian_blur
+    transforms:
+      - name: gaussian_blur
+        backend: opencv
+        params:
+          radius: 2.0
+
+  - name: opencv_rotate
+    transforms:
+      - name: rotate
+        backend: opencv
+        params:
+          angle: 15
+          fill_color: 0

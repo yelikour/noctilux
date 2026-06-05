@@ -19,6 +19,7 @@ def test_readme_key_config_paths_exist() -> None:
     paths = [
         Path("configs/examples/full_v020.yaml"),
         Path("configs/examples/quickstart_sample.yaml"),
+        Path("configs/examples/opencv_backend.yaml"),
         Path("configs/presets/all_basic_v021.yaml"),
         Path("examples/images/sample.jpg"),
         Path("configs/presets/classification_light.yaml"),
@@ -210,4 +211,42 @@ def test_backend_design_confirms_pillow_default() -> None:
     text = Path("docs/backend_design.md").read_text(encoding="utf-8")
     assert "PIL.Image.Image" in text
     assert "default" in text.lower()
+
+
+def test_opencv_backend_module_exists() -> None:
+    assert Path("src/noctilux/backends/__init__.py").exists()
+    assert Path("src/noctilux/backends/opencv_backend.py").exists()
+
+
+def test_opencv_config_example_exists() -> None:
+    assert Path("configs/examples/opencv_backend.yaml").exists()
+
+
+def test_opencv_config_validates() -> None:
+    config = resolve_config(load_config(Path("configs/examples/opencv_backend.yaml")))
+    validate_config(config)
+
+
+def test_opencv_optional_dependency_in_pyproject() -> None:
+    text = Path("pyproject.toml").read_text(encoding="utf-8")
+    assert "opencv" in text
+    assert "opencv-python-headless" in text
+
+
+def test_opencv_missing_backend_error_message() -> None:
+    import sys
+    from unittest.mock import patch
+
+    from noctilux.backends.opencv_backend import require_opencv
+
+    cv2_mod = sys.modules.pop("cv2", None)
+    try:
+        with patch("noctilux.backends.opencv_backend.is_opencv_available", return_value=False):
+            with __import__("pytest").raises(Exception) as exc_info:
+                require_opencv()
+            msg = str(exc_info.value)
+            assert "noctilux[opencv]" in msg
+    finally:
+        if cv2_mod is not None:
+            sys.modules["cv2"] = cv2_mod
 

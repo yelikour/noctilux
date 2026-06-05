@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+
+- Added optional OpenCV backend foundation (`noctilux[opencv]`).
+- Added OpenCV backend support for `resize_exact`, `resize_long_edge`, `gaussian_blur`, and `rotate`.
+- Added `src/noctilux/backends/` module with PIL-OpenCV conversion utilities.
+- Added `src/noctilux/exceptions.py` for structured error types.
+- Added `configs/examples/opencv_backend.yaml` example config.
+- Added tests for backend availability, config validation, and optional OpenCV execution.
+- Pillow + NumPy remains the default backend. OpenCV is opt-in via `backend: opencv` in YAML.
+
 ## 0.3.7
 
 - Added `docs/backend_design.md` with OpenCV backend architecture plan.

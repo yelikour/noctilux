@@ -20,7 +20,25 @@ class GaussianBlurTransform(BaseTransform):
             raise ValueError("gaussian_blur radius must be a number >= 0.")
 
     def __call__(self, image: Image.Image, context: dict | None = None) -> Image.Image:
+        if self.backend == "opencv":
+            return self._call_opencv(image)
+        return self._call_pillow(image)
+
+    def _call_pillow(self, image: Image.Image) -> Image.Image:
         return image.copy().filter(ImageFilter.GaussianBlur(radius=float(self.params["radius"])))
+
+    def _call_opencv(self, image: Image.Image) -> Image.Image:
+        from noctilux.backends.opencv_backend import cv2_to_pil, pil_to_cv2, require_opencv
+
+        require_opencv()
+        import cv2
+
+        arr = pil_to_cv2(image)
+        ksize = max(1, round(float(self.params["radius"]) * 2))
+        if ksize % 2 == 0:
+            ksize += 1
+        blurred = cv2.GaussianBlur(arr, (ksize, ksize), float(self.params["radius"]))
+        return cv2_to_pil(blurred)
 
 
 @register_transform("median_blur")

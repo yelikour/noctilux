@@ -31,17 +31,40 @@ class ResizeLongEdgeTransform(BaseTransform):
         get_resample(interpolation, "resize_long_edge")
 
     def __call__(self, image: Image.Image, context: dict | None = None) -> Image.Image:
+        if self.backend == "opencv":
+            return self._call_opencv(image)
+        return self._call_pillow(image)
+
+    def _call_pillow(self, image: Image.Image) -> Image.Image:
         source = image.copy()
         width, height = source.size
         target_long_edge = self.params["long_edge"]
         current_long_edge = max(width, height)
         if current_long_edge == target_long_edge:
             return source
-
         scale = target_long_edge / float(current_long_edge)
         new_size = (max(1, round(width * scale)), max(1, round(height * scale)))
         resample = get_resample(self.params.get("interpolation", "bicubic"), "resize_long_edge")
         return source.resize(new_size, resample=resample)
+
+    def _call_opencv(self, image: Image.Image) -> Image.Image:
+        from noctilux.backends.opencv_backend import cv2_to_pil, get_cv2_interpolation, pil_to_cv2, require_opencv
+
+        require_opencv()
+        import cv2
+
+        arr = pil_to_cv2(image)
+        width, height = image.size
+        target_long_edge = self.params["long_edge"]
+        current_long_edge = max(width, height)
+        if current_long_edge == target_long_edge:
+            return image.copy()
+        scale = target_long_edge / float(current_long_edge)
+        new_w = max(1, round(width * scale))
+        new_h = max(1, round(height * scale))
+        interp = get_cv2_interpolation(self.params.get("interpolation", "bicubic"), "resize_long_edge")
+        resized = cv2.resize(arr, (new_w, new_h), interpolation=interp)
+        return cv2_to_pil(resized)
 
 
 @register_transform("resize_exact")
@@ -59,9 +82,25 @@ class ResizeExactTransform(BaseTransform):
         get_resample(interpolation, "resize_exact")
 
     def __call__(self, image: Image.Image, context: dict | None = None) -> Image.Image:
+        if self.backend == "opencv":
+            return self._call_opencv(image)
+        return self._call_pillow(image)
+
+    def _call_pillow(self, image: Image.Image) -> Image.Image:
         source = image.copy()
         resample = get_resample(self.params.get("interpolation", "bicubic"), "resize_exact")
         return source.resize((self.params["width"], self.params["height"]), resample=resample)
+
+    def _call_opencv(self, image: Image.Image) -> Image.Image:
+        from noctilux.backends.opencv_backend import cv2_to_pil, get_cv2_interpolation, pil_to_cv2, require_opencv
+
+        require_opencv()
+        import cv2
+
+        arr = pil_to_cv2(image)
+        interp = get_cv2_interpolation(self.params.get("interpolation", "bicubic"), "resize_exact")
+        resized = cv2.resize(arr, (self.params["width"], self.params["height"]), interpolation=interp)
+        return cv2_to_pil(resized)
 
 
 @register_transform("resize_short_edge")

@@ -3,7 +3,7 @@
 [![CI](https://github.com/yelikour/noctilux/actions/workflows/ci.yml/badge.svg)](https://github.com/yelikour/noctilux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.3.7-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.4.0-orange.svg)](CHANGELOG.md)
 
 **Noctilux** is a general-purpose offline image batch processing and augmentation toolkit. It uses YAML configs to define reproducible, traceable image processing pipelines for pre-training data preparation.
 
@@ -21,11 +21,12 @@ Noctilux 是一个通用的离线图像批处理与增强工具。它面向训�
 
 ## Current Status
 
-- Version: `0.3.7`
+- Version: `0.4.0`
 - Execution: serial (parallel planned for v0.5.0)
-- Backends: Pillow + NumPy only
+- Default backend: Pillow + NumPy
+- Optional backend: OpenCV (selected transforms)
 - Python: 3.10, 3.11, 3.12 (CI-tested)
-- Not yet supported: parallel processing, OpenCV/Albumentations backends, annotation sync, PyPI release
+- Not yet supported: parallel processing, annotation sync, PyPI release
 
 ## 安装
 
@@ -39,6 +40,12 @@ pip install -e .
 
 ```bash
 pip install -e ".[dev]"
+```
+
+可选 OpenCV backend：
+
+```bash
+pip install -e ".[opencv]"
 ```
 
 离线或受限网络环境可尝试：
@@ -122,6 +129,20 @@ noctilux report \
 - Noise：`gaussian_noise`、`poisson_noise`、`salt_pepper_noise`
 - Color：`brightness_contrast`、`gamma_correction`、`saturation_hue`、`grayscale`、`sharpen`、`posterize`
 
+## OpenCV Backend
+
+Noctilux supports an optional OpenCV backend for selected transforms. Install with `pip install -e ".[opencv]"` and specify `backend: opencv` in YAML:
+
+```yaml
+transforms:
+  - name: resize_long_edge
+    backend: opencv
+    params:
+      long_edge: 512
+```
+
+OpenCV backend currently supports: `resize_exact`, `resize_long_edge`, `gaussian_blur`, `rotate`. All other transforms use Pillow regardless of the backend setting. See [docs/backend_design.md](docs/backend_design.md) for details.
+
 ## 配置示例与 Presets
 
 示例配置：
@@ -132,6 +153,7 @@ noctilux report \
 - `configs/examples/resize_plus.yaml`
 - `configs/examples/crop_plus.yaml`
 - `configs/examples/geometric_color.yaml`
+- `configs/examples/opencv_backend.yaml`
 
 Preset 配置：
 
@@ -322,14 +344,13 @@ Bug reports and feature requests are welcome via [GitHub Issues](https://github.
 
 See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for the full roadmap. Planned milestones:
 
-- v0.4.0: optional OpenCV backend design and minimal implementation
+- v0.4.0: optional OpenCV backend (resize_exact, resize_long_edge, gaussian_blur, rotate)
 - v0.5.0: parallel processing and resume support
 - v0.6.0: detection and segmentation annotation synchronization
 
 ## 当前限制
 
-- `num_workers` 仍然只是未来并行接口占位，`v0.3.x` 仍为串行执行。
-- 暂无 OpenCV / Albumentations / AugLy 等后端。
+- `num_workers` 仍然只是未来并行接口占位，`v0.4.x` 仍为串行执行。
+- OpenCV backend 仅支持 4 个 transform，其余仍使用 Pillow。
 - 尚未实现 detection / segmentation annotation 同步增强。
-- `motion_blur` 仍是轻量实现，侧重可复现和低依赖，不是高性能图像处理后端。
 - `preview` 只做视觉检查，不会生成 `manifest.csv`、`transform_log.jsonl` 或其他批处理 metadata。

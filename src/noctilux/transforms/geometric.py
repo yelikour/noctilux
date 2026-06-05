@@ -43,6 +43,11 @@ class RotateTransform(BaseTransform):
             raise ValueError("rotate fill_color must be an int or a 3-item RGB tuple/list of ints.")
 
     def __call__(self, image: Image.Image, context: dict | None = None) -> Image.Image:
+        if self.backend == "opencv":
+            return self._call_opencv(image)
+        return self._call_pillow(image)
+
+    def _call_pillow(self, image: Image.Image) -> Image.Image:
         source = image.copy().convert("RGB")
         return source.rotate(
             angle=float(self.params["angle"]),
@@ -50,3 +55,27 @@ class RotateTransform(BaseTransform):
             resample=Image.Resampling.BICUBIC,
             fillcolor=self.params["fill_color"],
         )
+
+    def _call_opencv(self, image: Image.Image) -> Image.Image:
+        from noctilux.backends.opencv_backend import cv2_to_pil, pil_to_cv2, require_opencv
+
+        require_opencv()
+        import cv2
+
+        if self.params["expand"]:
+            raise NotImplementedError(
+                "rotate with expand=True is not supported by the OpenCV backend. "
+                "Use backend: pillow instead."
+            )
+
+        arr = pil_to_cv2(image)
+        h, w = arr.shape[:2]
+        center = (w / 2.0, h / 2.0)
+        matrix = cv2.getRotationMatrix2D(center, float(self.params["angle"]), 1.0)
+        fill_color = self.params["fill_color"]
+        if isinstance(fill_color, (list, tuple)):
+            bgr_fill = (fill_color[2], fill_color[1], fill_color[0])
+        else:
+            bgr_fill = (fill_color, fill_color, fill_color)
+        rotated = cv2.warpAffine(arr, matrix, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=bgr_fill)
+        return cv2_to_pil(rotated)

@@ -201,21 +201,22 @@ These four transforms have clear Pillow equivalents, making comparison testing s
 
 ## Implementation Phases
 
-### v0.4.0a — Design (this document)
+### v0.4.0a — Design (completed in v0.3.7)
 
 - Document backend architecture.
 - Define configuration format and registry changes.
 - No code changes.
 
-### v0.4.0 — Minimal OpenCV backend
+### v0.4.0 — Minimal OpenCV backend (completed)
 
-- Update registry to support `(name, backend)` lookup.
-- Add `opencv` optional dependency group.
-- Implement OpenCV versions of the four priority transforms.
-- Add backend-aware tests.
-- Update CI with optional OpenCV job.
+- Added `src/noctilux/backends/` module with PIL-OpenCV conversion utilities.
+- Added `opencv` optional dependency group (`noctilux[opencv]`).
+- Implemented OpenCV backend for `resize_exact`, `resize_long_edge`, `gaussian_blur`, `rotate`.
+- Added `configs/examples/opencv_backend.yaml`.
+- Added backend-aware tests (with `pytest.importorskip("cv2")` for optional tests).
+- Kept Pillow as default backend. OpenCV is opt-in via `backend: opencv` in YAML.
 
-### v0.4.x — Broader coverage
+### v0.4.x — Broader coverage (planned)
 
 - Add OpenCV implementations for more transforms where beneficial.
 - Consider Albumentations backend.

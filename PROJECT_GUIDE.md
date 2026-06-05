@@ -1861,16 +1861,19 @@ YAML 调用：
 
 ---
 
-### v0.4.0（计划中）
+### v0.4.0（已完成）
 
 目标：optional backend 探索。
 
 设计文档：`docs/backend_design.md`
 
-分阶段计划：
+已完成：
 
-* v0.4.0a / design：backend 架构设计文档，不修改代码
-* v0.4.0：最小 OpenCV backend 实现（4 个优先 transform）
+* v0.4.0a / design：backend 架构设计文档（v0.3.7）
+* v0.4.0：最小 OpenCV backend 实现（resize_exact、resize_long_edge、gaussian_blur、rotate）
+
+后续计划：
+
 * v0.4.x：扩展 backend 覆盖范围，考虑 Albumentations 等
 
 原则：

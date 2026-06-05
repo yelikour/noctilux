@@ -67,6 +67,7 @@ Metadata output structure from `noctilux run`:
 - `v0.3.5`: public repository polish — CONTRIBUTING.md, badge update, GitHub description/topics applied, visibility transition completed.
 - `v0.3.6`: community health files — issue templates, PR template, SECURITY.md, CODE_OF_CONDUCT.md, README support/roadmap sections.
 - `v0.3.7`: backend design documentation — `docs/backend_design.md`, OpenCV architecture plan.
+- `v0.4.0`: minimal optional OpenCV backend — `resize_exact`, `resize_long_edge`, `gaussian_blur`, `rotate` with `backend: opencv` config support.
 
 Important tag state:
 
@@ -136,8 +137,8 @@ noctilux report \
 
 ## Suggested Roadmap
 
-- `v0.3.7`: backend design documentation.
-- `v0.4.0`: optional OpenCV backend implementation (design in `docs/backend_design.md`).
+- `v0.4.0`: minimal optional OpenCV backend (resize_exact, resize_long_edge, gaussian_blur, rotate).
+- `v0.4.x`: broader backend coverage.
 - `v0.5.0`: parallel execution and resume support.
 - `v0.6.0`: detection and segmentation annotation synchronization.
 - Adjust the roadmap when the user gives a more specific task.
