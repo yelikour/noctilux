@@ -4,17 +4,21 @@ This document describes the planned parallel execution and resume architecture f
 
 ## Current State
 
-Noctilux v0.5.6 defaults to serial execution and exposes experimental process-pool parallel execution only when `num_workers > 1`:
+Noctilux v0.6.0 defaults to serial execution and exposes experimental process-pool parallel execution only when `num_workers > 1`:
 
 - `num_workers=1` runs the original serial path in `cli.py`.
-- `num_workers > 1` uses `ProcessPoolExecutor` with worker processes that return `ProcessingResult` objects.
+- `num_workers > 1` uses `ProcessPoolExecutor` with worker processes that return `ProcessingResult` objects. This remains experimental / hardening-stage, not stable parallel.
 - Metadata is written only by the main process through `MetadataWriter`.
 - `--resume` preserves existing metadata, appends newly processed results, and regenerates `summary.csv` from the full manifest.
 - Parallel output paths are pre-allocated by the main process and are globally unique within the run.
+- Parallel task submission is bounded to a small in-flight set instead of submitting all futures at once.
+- Worker future exceptions are surfaced with task context while `MetadataWriter.close()` remains protected by `finally`.
+- Linux spawn-mode smoke coverage exists; Windows/macOS CI coverage is still not included.
+- Save failures record `stage=save_image` and honor `skip_broken_images` in both serial and parallel modes.
 - `--skip-existing` is evaluated against the final reserved output path, including deterministic same-stem collision suffixes.
 - Manifest `sample_id` values must be unique before processing starts.
 - `output.overwrite: false` avoids existing files; `output.overwrite: true` may overwrite existing files but still prevents task-to-task collisions in the same run.
-- Parallel mode remains experimental in v0.5.x; stable parallel execution is still planned for v0.6.0.
+- Parallel mode remains experimental / hardening-stage in v0.6.0; it is not yet declared stable.
 
 ### Why Serial is Safe
 
@@ -337,7 +341,7 @@ These are CLI-only overrides. YAML `runtime.num_workers` remains supported as th
 - `num_workers` status line in run summary output.
 - Removed stale `v0.3.x` serial-only note from `inspect-config`.
 - Serial execution (num_workers=1) unchanged. Metadata schema unchanged. Default remains serial.
-- This is still not "stable parallel execution" — that goal remains at v0.6.0.
+- This is still not "stable parallel execution" — the stable-parallel decision remains beyond v0.6.0.
 
 ### v0.5.5 — Parallel Audit Fixes (completed)
 
@@ -375,10 +379,14 @@ These are CLI-only overrides. YAML `runtime.num_workers` remains supported as th
 - [x] Parallel skip_broken_images=False fails the run after recording failures
 - [x] MetadataWriter closes on parallel future exceptions
 - [x] CLI --num-workers rejects values < 1
-- [ ] Worker crash recovery (e.g., SIGKILL, OOM) — deferred to v0.6.0
-- [ ] Timeout handling for hung workers — deferred to v0.6.0
-- [ ] Cross-platform (macOS spawn, Windows spawn) validation — deferred to v0.6.0
-- [ ] Performance benchmarks — deferred to v0.6.0
+- [x] Future exceptions return clear errors and still close MetadataWriter
+- [x] Bounded in-flight future submission is covered by tests
+- [x] Linux spawn-mode smoke test is covered
+- [x] Save failures honor skip_broken_images in serial and parallel modes
+- [ ] Real worker crash recovery (e.g., SIGKILL, OOM) — deferred beyond v0.6.0
+- [ ] Timeout handling for hung workers — deferred beyond v0.6.0
+- [ ] Windows/macOS CI validation — deferred beyond v0.6.0
+- [ ] Formal performance benchmarks — deferred beyond v0.6.0
 
 ### v0.5.6 — Parallel Edge-Case Fixes (completed)
 
@@ -387,12 +395,15 @@ These are CLI-only overrides. YAML `runtime.num_workers` remains supported as th
 - Serial load-image failures now honor `skip_broken_images=False` and fail the run after recording `stage=load_image`.
 - Folder-mode generated `sample_id` values, metadata schema fields, deterministic output suffixes, and serial default execution remain unchanged.
 
-### v0.6.0 — Stable Parallel Execution
+### v0.6.0 — Parallel Hardening (completed)
 
-- Harden error handling (worker crashes, timeouts).
-- Performance benchmarks.
-- Documentation and examples.
-- Consider `concurrent.futures.ProcessPoolExecutor` vs `multiprocessing.Pool`.
+- Hardened future exception handling for worker, pickle, and broken-pool failures with task-context error messages.
+- Kept `MetadataWriter.close()` in a `finally` path so completed records still produce `summary.csv` on parallel exceptions.
+- Added bounded in-flight task submission using `max(num_workers * 4, num_workers)` by default.
+- Added Linux spawn-mode smoke coverage to catch basic pickling regressions.
+- Aligned save-image failure behavior with `skip_broken_images` in serial and parallel execution.
+- Parallel mode is still experimental / hardening-stage, not stable.
+- Remaining gaps: real OOM/SIGKILL recovery, hung-worker timeouts, Windows/macOS CI, and formal performance benchmarks.
 
 ## Out of Scope
 

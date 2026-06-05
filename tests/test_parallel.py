@@ -796,6 +796,53 @@ def test_parallel_transform_failure_respects_skip_broken_false(tmp_path: Path) -
     assert failed.iloc[0]["stage"] == "transform"
 
 
+def test_parallel_save_failure_respects_skip_broken_false(tmp_path: Path) -> None:
+    config_path = _create_parallel_config(
+        tmp_path,
+        num_images=1,
+        skip_broken_images=False,
+        overwrite=True,
+    )
+    target_dir = tmp_path / "output" / "images" / "resize_test" / "img0__resize_test__000.jpg"
+    target_dir.mkdir(parents=True)
+
+    result = _run_cli(config_path, ["--num-workers", "2"])
+
+    assert result.returncode == 1
+    assert "skip_broken_images=False" in result.stderr
+    failed = pd.read_csv(tmp_path / "output" / "metadata" / "failed_images.csv")
+    summary = pd.read_csv(tmp_path / "output" / "metadata" / "summary.csv")
+    assert failed.iloc[0]["stage"] == "save_image"
+    assert summary.iloc[0]["failed"] == 1
+
+
+def test_parallel_save_failure_skip_broken_true_records_and_continues(tmp_path: Path) -> None:
+    config_path = _create_parallel_config(
+        tmp_path,
+        num_images=2,
+        skip_broken_images=True,
+        overwrite=True,
+    )
+    target_dir = tmp_path / "output" / "images" / "resize_test" / "img0__resize_test__000.jpg"
+    target_dir.mkdir(parents=True)
+
+    result = _run_cli(config_path, ["--num-workers", "2"])
+
+    assert result.returncode == 0
+    failed = pd.read_csv(tmp_path / "output" / "metadata" / "failed_images.csv")
+    manifest = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    summary = pd.read_csv(tmp_path / "output" / "metadata" / "summary.csv")
+    lines = (tmp_path / "output" / "metadata" / "transform_log.jsonl").read_text(encoding="utf-8").splitlines()
+    assert failed.iloc[0]["stage"] == "save_image"
+    assert len(manifest) == 2
+    assert sorted(manifest["success"].astype(str).str.lower().tolist()) == ["false", "true"]
+    assert summary.iloc[0]["total"] == 2
+    assert summary.iloc[0]["success"] == 1
+    assert summary.iloc[0]["failed"] == 1
+    for line in lines:
+        json.loads(line)
+
+
 def test_cli_num_workers_zero_rejected(tmp_path: Path) -> None:
     config_path = _create_parallel_config(tmp_path)
 
@@ -814,7 +861,66 @@ def test_cli_num_workers_negative_rejected(tmp_path: Path) -> None:
     assert "--num-workers must be >= 1" in result.stderr
 
 
+def test_parallel_bounded_in_flight_handles_more_tasks_than_limit(tmp_path: Path) -> None:
+    from noctilux.cli import _load_and_validate, _run_parallel
+    from noctilux.pipeline import build_pipelines
+    from noctilux.scanner import scan_inputs
+
+    config_path = _create_parallel_config(tmp_path, num_images=7)
+    config = _load_and_validate(config_path)
+    samples = scan_inputs(config)
+    pipelines = build_pipelines(config)
+
+    exit_code = _run_parallel(
+        config=config,
+        samples=samples,
+        pipelines=pipelines,
+        num_workers=2,
+        do_resume=False,
+        do_skip_existing=False,
+        do_retry_failed=False,
+        max_in_flight=2,
+    )
+
+    assert exit_code == 0
+    manifest = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    assert len(manifest) == 7
+    assert manifest["success"].all()
+
+
+def test_parallel_spawn_context_smoke(tmp_path: Path) -> None:
+    import multiprocessing
+
+    from noctilux.cli import _load_and_validate, _run_parallel
+    from noctilux.pipeline import build_pipelines
+    from noctilux.scanner import scan_inputs
+
+    config_path = _create_parallel_config(tmp_path, num_images=1)
+    config = _load_and_validate(config_path)
+    samples = scan_inputs(config)
+    pipelines = build_pipelines(config)
+
+    exit_code = _run_parallel(
+        config=config,
+        samples=samples,
+        pipelines=pipelines,
+        num_workers=2,
+        do_resume=False,
+        do_skip_existing=False,
+        do_retry_failed=False,
+        mp_context=multiprocessing.get_context("spawn"),
+        max_in_flight=1,
+    )
+
+    assert exit_code == 0
+    manifest = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    assert len(manifest) == 1
+    assert bool(manifest.iloc[0]["success"]) is True
+
+
 def test_parallel_writer_closes_on_future_exception(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from concurrent.futures import Future
+
     from noctilux.cli import _load_and_validate, _run_parallel
     from noctilux.pipeline import build_pipelines
     from noctilux.scanner import scan_inputs
@@ -823,17 +929,6 @@ def test_parallel_writer_closes_on_future_exception(tmp_path: Path, monkeypatch:
     config = _load_and_validate(config_path)
     samples = scan_inputs(config)
     pipelines = build_pipelines(config)
-
-    class FakeFuture:
-        def __init__(self, result: ProcessingResult | None = None, error: Exception | None = None) -> None:
-            self._result = result
-            self._error = error
-
-        def result(self) -> ProcessingResult:
-            if self._error is not None:
-                raise self._error
-            assert self._result is not None
-            return self._result
 
     class FakeExecutor:
         def __init__(self, max_workers: int) -> None:
@@ -846,10 +941,11 @@ def test_parallel_writer_closes_on_future_exception(tmp_path: Path, monkeypatch:
         def __exit__(self, exc_type: object, exc: object, traceback: object) -> bool:
             return False
 
-        def submit(self, fn: object, task: ProcessingTask) -> FakeFuture:
+        def submit(self, fn: object, task: ProcessingTask) -> Future[ProcessingResult]:
             self.submitted += 1
+            future: Future[ProcessingResult] = Future()
             if self.submitted == 1:
-                return FakeFuture(
+                future.set_result(
                     ProcessingResult(
                         sample_id=task.sample_id,
                         pipeline_name=task.pipeline_name,
@@ -864,11 +960,13 @@ def test_parallel_writer_closes_on_future_exception(tmp_path: Path, monkeypatch:
                         transform_log=[],
                     )
                 )
-            return FakeFuture(error=RuntimeError("synthetic future failure"))
+            else:
+                future.set_exception(RuntimeError("synthetic future failure"))
+            return future
 
     monkeypatch.setattr("concurrent.futures.ProcessPoolExecutor", FakeExecutor)
 
-    with pytest.raises(RuntimeError, match="Parallel worker failed before returning a result"):
+    with pytest.raises(RuntimeError, match="Parallel worker failed before returning a result for"):
         _run_parallel(
             config=config,
             samples=samples,
@@ -877,14 +975,18 @@ def test_parallel_writer_closes_on_future_exception(tmp_path: Path, monkeypatch:
             do_resume=False,
             do_skip_existing=False,
             do_retry_failed=False,
+            max_in_flight=1,
         )
 
     metadata_dir = tmp_path / "output" / "metadata"
     manifest = pd.read_csv(metadata_dir / "manifest.csv")
     summary = pd.read_csv(metadata_dir / "summary.csv")
+    lines = (metadata_dir / "transform_log.jsonl").read_text(encoding="utf-8").splitlines()
     assert len(manifest) == 1
     assert summary.iloc[0]["total"] == 1
     assert summary.iloc[0]["success"] == 1
+    for line in lines:
+        json.loads(line)
 
 # =========================================================================
 # Resume / skip-existing / retry-failed parallel boundary tests

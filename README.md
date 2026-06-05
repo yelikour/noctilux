@@ -3,7 +3,7 @@
 [![CI](https://github.com/yelikour/noctilux/actions/workflows/ci.yml/badge.svg)](https://github.com/yelikour/noctilux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.5.6-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.6.0-orange.svg)](CHANGELOG.md)
 
 **Noctilux** is a general-purpose offline image batch processing and augmentation toolkit. It uses YAML configs to define reproducible, traceable image processing pipelines for pre-training data preparation.
 
@@ -18,11 +18,12 @@ Noctilux 是一个通用的离线图像批处理与增强工具。它面向训�
 - Config validation with `noctilux inspect-config`
 - 27 registered transforms across 7 categories
 - Full metadata traceability: manifest.csv, transform_log.jsonl, failed_images.csv, summary.csv
+- Parallel hardening in v0.6.0: bounded task submission, clearer worker exception handling, spawn smoke coverage
 
 ## Current Status
 
-- Version: `0.5.6`
-- Execution: serial by default; experimental parallel mode with `--num-workers N` when N > 1
+- Version: `0.6.0`
+- Execution: serial by default; experimental hardening-stage parallel mode with `--num-workers N` when N > 1
 - Default backend: Pillow + NumPy
 - Optional backend: OpenCV via `noctilux[opencv]` (CI-tested on Python 3.12)
 - Python: 3.10, 3.11, 3.12 (CI-tested)
@@ -341,14 +342,14 @@ noctilux run --config config.yaml --skip-existing
 # Re-process only previously failed outputs
 noctilux run --config config.yaml --retry-failed
 
-# Run with parallel workers (experimental in v0.5.x)
+# Run with parallel workers (experimental / hardening-stage in v0.6.0)
 noctilux run --config config.yaml --num-workers 4
 
 # Quick test with parallel on a small sample
 noctilux run --config configs/examples/quickstart_sample.yaml --num-workers 2
 ```
 
-**Note:** Parallel execution (`--num-workers N` with N > 1) is experimental in v0.5.x. Metadata is written by the main process. Default execution remains serial (`num_workers=1`). For large datasets, verify with `--dry-run` or a small sample first.
+**Note:** Parallel execution (`--num-workers N` with N > 1) is experimental / hardening-stage in v0.6.0. Metadata is written by the main process, worker future exceptions are surfaced clearly, and in-flight task submission is bounded. Default execution remains serial (`num_workers=1`). For large datasets, verify with `--dry-run` or a small sample first.
 
 `--resume` and `--retry-failed` are mutually exclusive. `--skip-existing` can be combined with `--resume`. Resume and skip modes work in both serial and parallel modes.
 
@@ -364,7 +365,7 @@ Noctilux is in early development. The API may change between minor versions.
 
 - CI-tested Python: 3.10, 3.11, 3.12
 - Backends: Pillow + NumPy
-- Execution: serial by default; experimental parallel mode available in v0.5.x
+- Execution: serial by default; experimental hardening-stage parallel mode available in v0.6.0
 - No PyPI release yet
 
 Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/yelikour/noctilux/issues).
@@ -374,12 +375,13 @@ Bug reports and feature requests are welcome via [GitHub Issues](https://github.
 See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for the full roadmap. Planned milestones:
 
 - v0.4.0: optional OpenCV backend (resize_exact, resize_long_edge, gaussian_blur, rotate)
-- v0.5.x: metadata-safe resume and parallel execution
-- v0.6.0: detection and segmentation annotation synchronization
+- v0.5.x: metadata-safe resume and experimental parallel execution
+- v0.6.0: parallel hardening while keeping serial execution as the default
+- v0.7.0: detection and segmentation annotation synchronization
 
 ## 当前限制
 
-- `num_workers` 启用 `ProcessPoolExecutor` 并行执行（实验性，v0.5.6）。默认 1 为串行模式。
+- `num_workers` 启用 `ProcessPoolExecutor` 并行执行（实验性 / hardening-stage，v0.6.0）。默认 1 为串行模式。
 - OpenCV backend 仅支持 4 个 transform，其余仍使用 Pillow。
 - 尚未实现 detection / segmentation annotation 同步增强。
 - `preview` 只做视觉检查，不会生成 `manifest.csv`、`transform_log.jsonl` 或其他批处理 metadata。

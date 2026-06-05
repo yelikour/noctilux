@@ -241,6 +241,29 @@ def test_serial_load_failure_skip_broken_true_records_and_continues(
     capsys.readouterr()
 
 
+def test_serial_save_failure_respects_skip_broken_false(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config = _base_config(tmp_path)
+    config["output"]["overwrite"] = True
+    config["runtime"]["skip_broken_images"] = False
+    _make_image(tmp_path / "images" / "class_a" / "sample.jpg")
+    target_dir = tmp_path / "output" / "images" / "resize_32" / "class_a" / "sample__resize_32__000.jpg"
+    target_dir.mkdir(parents=True)
+    config_path = _write_config(tmp_path, config)
+
+    exit_code = main(["run", "--config", str(config_path)])
+
+    assert exit_code == 1
+    failed = pd.read_csv(tmp_path / "output" / "metadata" / "failed_images.csv")
+    summary = pd.read_csv(tmp_path / "output" / "metadata" / "summary.csv")
+    assert len(failed) == 1
+    assert failed.loc[0, "stage"] == "save_image"
+    assert summary.iloc[0]["failed"] == 1
+    capsys.readouterr()
+
+
 def test_num_workers_gt_one_uses_parallel_execution(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

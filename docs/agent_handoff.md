@@ -77,6 +77,7 @@ Metadata output structure from `noctilux run`:
 - `v0.5.4`: parallel stabilization — 28 parallel tests covering determinism, failure scenarios, resume/skip/retry boundaries. Added experimental warning and `num_workers` status in run summary. Serial default unchanged.
 - `v0.5.5`: parallel audit fixes — safe overwrite handling, globally unique parallel output paths, resume metadata preservation, parallel `skip_broken_images=False` alignment, MetadataWriter close on parallel exceptions, and CLI `num_workers` validation.
 - `v0.5.6`: parallel edge-case fixes — duplicate manifest `sample_id` rejection, final-path `--skip-existing` collision handling, and serial load-image `skip_broken_images=False` alignment.
+- `v0.6.0`: experimental parallel hardening — clearer future exception handling, bounded in-flight submission, spawn smoke coverage, and save-image failure alignment. Parallel remains hardening-stage, not stable.
 
 Important tag state:
 
@@ -108,7 +109,7 @@ Important tag state:
 - New features must include tests.
 - After changes, run pytest and ruff before declaring completion.
 - Keep dependencies minimal; do not add OpenCV, Albumentations, AugLy, or imagecorruptions unless the user explicitly asks for a scoped backend change.
-- Do not implement parallel execution without first completing the metadata-safe writer refactor (v0.5.1). See `docs/parallel_resume_design.md` for phased plan. Parallel execution is available as experimental (v0.5.3+). Changes to parallel logic must run `tests/test_parallel.py`.
+- Do not implement parallel execution without first completing the metadata-safe writer refactor (v0.5.1). See `docs/parallel_resume_design.md` for phased plan. Parallel execution is available as experimental / hardening-stage (v0.5.3+). Changes to worker/result/metadata paths must be made cautiously and must run `tests/test_parallel.py` plus resume and smoke checks.
 
 ## Standard Validation Commands
 
@@ -150,7 +151,8 @@ noctilux report \
 - `v0.4.0`: minimal optional OpenCV backend (resize_exact, resize_long_edge, gaussian_blur, rotate).
 - `v0.4.x`: broader backend coverage.
 - `v0.5.0`: parallel execution and resume support.
-- `v0.6.0`: detection and segmentation annotation synchronization.
+- `v0.6.0`: parallel hardening completed; parallel still not declared stable.
+- `v0.7.0`: detection and segmentation annotation synchronization.
 - Adjust the roadmap when the user gives a more specific task.
 
 ## New Agent Onboarding Flow

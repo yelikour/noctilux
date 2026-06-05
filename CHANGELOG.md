@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0
+
+- Hardened experimental parallel execution without changing the serial default.
+- Added clearer future exception handling for worker, pickle, and broken-pool failures.
+- Added bounded in-flight task submission to reduce large-run future memory pressure.
+- Added spawn-mode smoke coverage for parallel execution.
+- Aligned save-image failure handling with `skip_broken_images` in serial and parallel modes.
+- Kept metadata schema fields unchanged.
+
 ## 0.5.6
 
 - Rejected duplicate manifest `sample_id` values before processing to avoid resume/retry key ambiguity.

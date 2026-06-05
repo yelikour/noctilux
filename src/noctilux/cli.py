@@ -314,9 +314,8 @@ def _run_serial(
                         stage="transform",
                         error=str(exc),
                     )
-                    if config["runtime"]["fail_fast"]:
-                        raise
-                    if not config["runtime"]["skip_broken_images"]:
+                    if config["runtime"]["fail_fast"] or not config["runtime"]["skip_broken_images"]:
+                        writer.close()
                         raise
                     continue
 
@@ -340,9 +339,8 @@ def _run_serial(
                         stage="save_image",
                         error=str(exc),
                     )
-                    if config["runtime"]["fail_fast"]:
-                        raise
-                    if not config["runtime"]["skip_broken_images"]:
+                    if config["runtime"]["fail_fast"] or not config["runtime"]["skip_broken_images"]:
+                        writer.close()
                         raise
                     continue
 
@@ -395,6 +393,8 @@ def _run_parallel(
     do_resume: bool,
     do_skip_existing: bool,
     do_retry_failed: bool,
+    mp_context: Any | None = None,
+    max_in_flight: int | None = None,
 ) -> int:
     from concurrent.futures import ProcessPoolExecutor
 
@@ -475,77 +475,48 @@ def _run_parallel(
     writer = MetadataWriter(saver.metadata_root, append=do_resume)
     fail_fast = config["runtime"].get("fail_fast", False)
     skip_broken_images = config["runtime"].get("skip_broken_images", True)
+    sample_by_id = _build_sample_lookup(samples)
+    max_in_flight = _resolve_max_in_flight(num_workers, max_in_flight)
 
     LOGGER.warning(
-        "Parallel execution is experimental in v0.5.x. "
+        "Parallel execution is experimental in v0.6.0 hardening-stage. "
         "Metadata is written by the main process. Default execution remains serial (num_workers=1).",
     )
     LOGGER.info(
-        "Starting parallel run: %d tasks, %d workers, %d skipped.",
+        "Starting parallel run: %d tasks, %d workers, %d max in flight, %d skipped.",
         len(tasks),
         num_workers,
+        max_in_flight,
         skipped_count,
     )
 
     show_progress = config["runtime"].get("show_progress", True)
+    executor_kwargs: dict[str, Any] = {"max_workers": num_workers}
+    if mp_context is not None:
+        executor_kwargs["mp_context"] = mp_context
 
     try:
-        with ProcessPoolExecutor(max_workers=num_workers) as executor:
-            futures = [executor.submit(process_task, task) for task in tasks]
-            future_iter = tqdm(futures, desc="Processing", unit="task") if show_progress else futures
-
-            for future in future_iter:
-                try:
-                    result = future.result()
-                except Exception as exc:
-                    raise RuntimeError(f"Parallel worker failed before returning a result: {exc}") from exc
-
-                if result.success:
-                    sample = _find_sample(samples, result.sample_id)
-                    writer.write_success(
-                        manifest_row=_build_manifest_record(
-                            sample=sample,
-                            pipeline_name=result.pipeline_name,
-                            repeat_index=result.repeat_index,
-                            input_info=result.input_info,
-                            output_info=result.output_info,
-                            output_path=result.output_path,
-                            seed=result.seed,
-                            success=True,
-                            error="",
-                        ),
-                        transform_log_row=_build_transform_record(
-                            sample=sample,
-                            pipeline_name=result.pipeline_name,
-                            repeat_index=result.repeat_index,
-                            seed=result.seed,
-                            transforms=result.transform_log,
-                            input_info=result.input_info,
-                            output_info=result.output_info,
-                            output_path=result.output_path,
-                            success=True,
-                            error=None,
-                        ),
-                    )
-                else:
-                    sample = _find_sample(samples, result.sample_id)
-                    _record_failure(
+        with ProcessPoolExecutor(**executor_kwargs) as executor:
+            progress = tqdm(total=len(tasks), desc="Processing", unit="task") if show_progress else None
+            try:
+                for result in _run_parallel_tasks(
+                    executor=executor,
+                    tasks=tasks,
+                    process_task_fn=process_task,
+                    max_in_flight=max_in_flight,
+                ):
+                    if progress is not None:
+                        progress.update(1)
+                    _write_parallel_result(
                         writer=writer,
-                        sample=sample,
-                        pipeline_name=result.pipeline_name,
-                        repeat_index=result.repeat_index,
-                        seed=result.seed,
-                        input_info=result.input_info,
-                        transforms=result.transform_log,
-                        stage=result.stage,
-                        error=result.error or "",
+                        result=result,
+                        sample_by_id=sample_by_id,
+                        fail_fast=fail_fast,
+                        skip_broken_images=skip_broken_images,
                     )
-                    if fail_fast or not skip_broken_images:
-                        mode = "fail-fast" if fail_fast else "skip_broken_images=False"
-                        raise RuntimeError(
-                            f"Task failed in {mode} mode: "
-                            f"{result.sample_id}/{result.pipeline_name}/{result.repeat_index}: {result.error}"
-                        )
+            finally:
+                if progress is not None:
+                    progress.close()
     finally:
         writer.close()
     print(f"total_samples: {len(samples)}")
@@ -562,11 +533,120 @@ def _run_parallel(
     return 0
 
 
-def _find_sample(samples: list[dict[str, Any]], sample_id: str) -> dict[str, Any]:
+def _resolve_max_in_flight(num_workers: int, max_in_flight: int | None = None) -> int:
+    if max_in_flight is None:
+        return max(num_workers * 4, num_workers)
+    if max_in_flight < 1:
+        raise ValueError("max_in_flight must be >= 1.")
+    return max_in_flight
+
+
+def _run_parallel_tasks(
+    executor: Any,
+    tasks: list[Any],
+    process_task_fn: Any,
+    *,
+    max_in_flight: int,
+) -> Any:
+    from concurrent.futures import FIRST_COMPLETED, wait
+
+    task_iter = iter(tasks)
+    futures: dict[Any, Any] = {}
+
+    def submit_next() -> bool:
+        try:
+            task = next(task_iter)
+        except StopIteration:
+            return False
+        futures[executor.submit(process_task_fn, task)] = task
+        return True
+
+    for _ in range(min(max_in_flight, len(tasks))):
+        submit_next()
+
+    while futures:
+        done, _ = wait(futures, return_when=FIRST_COMPLETED)
+        for future in done:
+            task = futures.pop(future)
+            yield _resolve_parallel_future(future, task)
+            submit_next()
+
+
+def _resolve_parallel_future(future: Any, task: Any) -> Any:
+    try:
+        return future.result()
+    except Exception as exc:
+        task_key = f"{task.sample_id}/{task.pipeline_name}/{task.repeat_index}"
+        raise RuntimeError(
+            "Parallel worker failed before returning a result for "
+            f"{task_key}: {type(exc).__name__}: {exc}"
+        ) from exc
+
+
+def _build_sample_lookup(samples: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    sample_by_id: dict[str, dict[str, Any]] = {}
     for sample in samples:
-        if sample["sample_id"] == sample_id:
-            return sample
-    return {"sample_id": sample_id, "image_path": "", "metadata": {}}
+        sample_id = str(sample["sample_id"])
+        if sample_id in sample_by_id:
+            raise ValueError(f"duplicate sample_id values found; sample_id must be unique: {sample_id}")
+        sample_by_id[sample_id] = sample
+    return sample_by_id
+
+
+def _write_parallel_result(
+    writer: MetadataWriter,
+    result: Any,
+    sample_by_id: dict[str, dict[str, Any]],
+    fail_fast: bool,
+    skip_broken_images: bool,
+) -> None:
+    sample = sample_by_id.get(result.sample_id, {"sample_id": result.sample_id, "image_path": "", "metadata": {}})
+
+    if result.success:
+        writer.write_success(
+            manifest_row=_build_manifest_record(
+                sample=sample,
+                pipeline_name=result.pipeline_name,
+                repeat_index=result.repeat_index,
+                input_info=result.input_info,
+                output_info=result.output_info,
+                output_path=result.output_path,
+                seed=result.seed,
+                success=True,
+                error="",
+            ),
+            transform_log_row=_build_transform_record(
+                sample=sample,
+                pipeline_name=result.pipeline_name,
+                repeat_index=result.repeat_index,
+                seed=result.seed,
+                transforms=result.transform_log,
+                input_info=result.input_info,
+                output_info=result.output_info,
+                output_path=result.output_path,
+                success=True,
+                error=None,
+            ),
+        )
+        return
+
+    _record_failure(
+        writer=writer,
+        sample=sample,
+        pipeline_name=result.pipeline_name,
+        repeat_index=result.repeat_index,
+        seed=result.seed,
+        input_info=result.input_info,
+        transforms=result.transform_log,
+        stage=result.stage,
+        error=result.error or "",
+    )
+    if fail_fast or not skip_broken_images:
+        mode = "fail-fast" if fail_fast else "skip_broken_images=False"
+        raise RuntimeError(
+            f"Task failed in {mode} mode: "
+            f"{result.sample_id}/{result.pipeline_name}/{result.repeat_index}: {result.error}"
+        )
 
 
 def make_manifest_command(args: argparse.Namespace) -> int:
