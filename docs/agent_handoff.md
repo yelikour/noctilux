@@ -74,6 +74,7 @@ Metadata output structure from `noctilux run`:
 - `v0.5.1`: metadata-safe writer refactor — `MetadataWriter` with streaming writes replaces in-memory `MetadataRecorder` in CLI run. Execution still serial.
 - `v0.5.2`: serial resume support — `--resume`, `--skip-existing`, `--retry-failed` CLI flags. Added `src/noctilux/resume.py` module. Execution still serial. Parallel not yet implemented.
 - `v0.5.3`: experimental process-pool prototype — `ProcessPoolExecutor` parallel execution via `--num-workers N`. Added `src/noctilux/worker.py` with `ProcessingTask`/`ProcessingResult` dataclasses. Serial execution unchanged when `num_workers=1`.
+- `v0.5.4`: parallel stabilization — 28 parallel tests covering determinism, failure scenarios, resume/skip/retry boundaries. Added experimental warning and `num_workers` status in run summary. Serial default unchanged.
 
 Important tag state:
 
@@ -105,7 +106,7 @@ Important tag state:
 - New features must include tests.
 - After changes, run pytest and ruff before declaring completion.
 - Keep dependencies minimal; do not add OpenCV, Albumentations, AugLy, or imagecorruptions unless the user explicitly asks for a scoped backend change.
-- Do not implement parallel execution without first completing the metadata-safe writer refactor (v0.5.1). See `docs/parallel_resume_design.md` for phased plan. Parallel execution is now available as experimental (v0.5.3).
+- Do not implement parallel execution without first completing the metadata-safe writer refactor (v0.5.1). See `docs/parallel_resume_design.md` for phased plan. Parallel execution is available as experimental (v0.5.3+). Changes to parallel logic must run `tests/test_parallel.py`.
 
 ## Standard Validation Commands
 

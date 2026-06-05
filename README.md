@@ -340,11 +340,16 @@ noctilux run --config config.yaml --skip-existing
 # Re-process only previously failed outputs
 noctilux run --config config.yaml --retry-failed
 
-# Run with parallel workers (experimental)
+# Run with parallel workers (experimental in v0.5.x)
 noctilux run --config config.yaml --num-workers 4
+
+# Quick test with parallel on a small sample
+noctilux run --config configs/examples/quickstart_sample.yaml --num-workers 2
 ```
 
-`--resume` and `--retry-failed` are mutually exclusive. `--skip-existing` can be combined with `--resume`. `--num-workers N` enables `ProcessPoolExecutor`-based parallel execution (default: 1, serial). Resume and skip modes work in both serial and parallel modes.
+**Note:** Parallel execution (`--num-workers N` with N > 1) is experimental in v0.5.x. Metadata is written by the main process. Default execution remains serial (`num_workers=1`). For large datasets, verify with `--dry-run` or a small sample first.
+
+`--resume` and `--retry-failed` are mutually exclusive. `--skip-existing` can be combined with `--resume`. Resume and skip modes work in both serial and parallel modes.
 
 ## Contributing
 

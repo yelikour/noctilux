@@ -118,7 +118,7 @@ def inspect_config_command(args: argparse.Namespace) -> int:
     print(f"transforms: {transform_count}")
     print(f"dry_run: {config['runtime']['dry_run']}")
     print(f"overwrite: {config['output']['overwrite']}")
-    print(f"num_workers: {config['runtime']['num_workers']} (serial execution in v0.3.x)")
+    print(f"num_workers: {config['runtime']['num_workers']}")
     return 0
 
 
@@ -356,6 +356,7 @@ def _run_serial(
     print(f"resume_enabled: {do_resume}")
     print(f"skip_existing_enabled: {do_skip_existing}")
     print(f"retry_failed_enabled: {do_retry_failed}")
+    print("num_workers: 1")
     print(f"metadata_path: {saver.metadata_root}")
     LOGGER.info("Completed serial run. metadata=%s", saver.metadata_root)
     return 0
@@ -437,6 +438,10 @@ def _run_parallel(
     writer = MetadataWriter(saver.metadata_root)
     fail_fast = config["runtime"].get("fail_fast", False)
 
+    LOGGER.warning(
+        "Parallel execution is experimental in v0.5.x. "
+        "Metadata is written by the main process. Default execution remains serial (num_workers=1).",
+    )
     LOGGER.info(
         "Starting parallel run: %d tasks, %d workers, %d skipped.",
         len(tasks),
@@ -507,6 +512,7 @@ def _run_parallel(
     print(f"resume_enabled: {do_resume}")
     print(f"skip_existing_enabled: {do_skip_existing}")
     print(f"retry_failed_enabled: {do_retry_failed}")
+    print(f"num_workers: {num_workers}")
     print(f"metadata_path: {saver.metadata_root}")
     LOGGER.info("Completed parallel run. metadata=%s", saver.metadata_root)
     return 0

@@ -317,6 +317,42 @@ These are CLI-only overrides. YAML `runtime.num_workers` remains supported as th
 - Added `tests/test_parallel.py` with 14 tests.
 - Serial execution unchanged when `num_workers=1`.
 
+### v0.5.4 — Parallel Stabilization (completed)
+
+- Added 28 tests in `tests/test_parallel.py` (up from 14 in v0.5.3).
+- Determinism tests: manifest keys, output paths, seeds, summary stats consistent between serial and parallel.
+- JSONL validity test for `transform_log.jsonl` in parallel mode.
+- Failure scenario tests: corrupt image (load_image), transform error (transform stage), single-failure isolation.
+- Resume/skip-existing/retry-failed boundary tests for parallel mode.
+- Experimental warning logged when `--num-workers > 1`.
+- `num_workers` status line in run summary output.
+- Removed stale `v0.3.x` serial-only note from `inspect-config`.
+- Serial execution (num_workers=1) unchanged. Metadata schema unchanged. Default remains serial.
+- This is still not "stable parallel execution" — that goal remains at v0.6.0.
+
+#### Stabilization Checklist
+
+- [x] Manifest keys match between serial and parallel
+- [x] Output paths match between serial and parallel
+- [x] Seeds are deterministic across execution modes
+- [x] summary.csv counts are consistent
+- [x] transform_log.jsonl lines are valid JSON
+- [x] Repeat > 1 produces no filename collisions
+- [x] Multiple pipelines produce no filename collisions
+- [x] Corrupt images record stage=load_image in failed_images.csv
+- [x] Transform errors record stage=transform in failed_images.csv
+- [x] Single task failure does not crash the run (skip_broken_images=True)
+- [x] --resume works with --num-workers 2
+- [x] --skip-existing works with --num-workers 2
+- [x] --retry-failed works with --num-workers 2
+- [x] --resume and --retry-failed remain mutually exclusive with --num-workers
+- [x] Skipped items not written to metadata
+- [x] Experimental warning displayed when parallel mode is active
+- [ ] Worker crash recovery (e.g., SIGKILL, OOM) — deferred to v0.6.0
+- [ ] Timeout handling for hung workers — deferred to v0.6.0
+- [ ] Cross-platform (macOS spawn, Windows spawn) validation — deferred to v0.6.0
+- [ ] Performance benchmarks — deferred to v0.6.0
+
 ### v0.6.0 — Stable Parallel Execution
 
 - Harden error handling (worker crashes, timeouts).

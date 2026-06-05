@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.4
+
+- Added parallel execution stabilization tests (28 total in `tests/test_parallel.py`).
+- Added determinism tests: manifest keys, output paths, seeds, summary stats consistent between serial and parallel.
+- Added JSONL validity test for `transform_log.jsonl` in parallel mode.
+- Added failure scenario tests: corrupt image (load_image stage), transform errors, single-failure isolation.
+- Added resume / skip-existing / retry-failed boundary tests for parallel mode.
+- Added experimental warning when `--num-workers > 1`: logs that parallel execution is experimental in v0.5.x.
+- Added `num_workers` status line to run summary output.
+- Updated `inspect-config` output: removed stale `v0.3.x` serial-only note.
+- Updated README with parallel execution experimental status and `--num-workers` example.
+- Updated `docs/parallel_resume_design.md` with v0.5.4 stabilization checklist.
+- Serial execution (num_workers=1) unchanged. Metadata schema unchanged. Default remains serial.
+
 ## 0.5.3
 
 - Added experimental `ProcessPoolExecutor`-based parallel execution via `--num-workers N`.

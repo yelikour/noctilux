@@ -149,7 +149,7 @@ def test_inspect_config_prints_required_fields(tmp_path: Path, capsys: pytest.Ca
     assert "output_root:" in captured.out
     assert "dry_run: True" in captured.out
     assert "overwrite: False" in captured.out
-    assert "num_workers: 1 (serial execution in v0.3.x)" in captured.out
+    assert "num_workers: 1" in captured.out
 
 
 def test_make_manifest_recurses_and_filters_non_images(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
