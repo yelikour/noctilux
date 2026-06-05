@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1
+
+- Refactored metadata writing into `MetadataWriter` with streaming writes.
+- Preserved existing metadata file formats (manifest.csv, transform_log.jsonl, failed_images.csv, summary.csv).
+- Improved internal structure for future resume and parallel execution.
+- Kept execution serial. No CLI behavior changes.
+
 ## 0.5.0
 
 - Added `docs/parallel_resume_design.md` with parallel execution and resume architecture design.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 from pathlib import Path
 from typing import Any
@@ -53,7 +54,114 @@ TRANSFORM_LOG_COLUMNS = [
 ]
 
 
+class MetadataWriter:
+    """Streaming metadata writer for batch processing runs.
+
+    Writes manifest.csv, transform_log.jsonl, and failed_images.csv
+    incrementally as results arrive. Summary.csv is written on close().
+
+    Designed for single-process use in serial execution (v0.5.x) and
+    as the centralized writer for future parallel execution.
+    """
+
+    def __init__(self, metadata_root: Path) -> None:
+        self.metadata_root = Path(metadata_root)
+        self.metadata_root.mkdir(parents=True, exist_ok=True)
+
+        self._success_count = 0
+        self._failed_count = 0
+        self._pipeline_counts: dict[str, dict[str, int]] = {}
+
+        self._manifest_path = self.metadata_root / "manifest.csv"
+        self._log_path = self.metadata_root / "transform_log.jsonl"
+        self._failed_path = self.metadata_root / "failed_images.csv"
+
+        self._manifest_file = self._manifest_path.open("w", encoding="utf-8", newline="")
+        self._manifest_writer = csv.DictWriter(self._manifest_file, fieldnames=MANIFEST_COLUMNS)
+        self._manifest_writer.writeheader()
+
+        self._log_file = self._log_path.open("w", encoding="utf-8")
+
+        self._failed_file = self._failed_path.open("w", encoding="utf-8", newline="")
+        self._failed_writer = csv.DictWriter(self._failed_file, fieldnames=FAILED_COLUMNS)
+        self._failed_writer.writeheader()
+
+    @property
+    def success_count(self) -> int:
+        return self._success_count
+
+    @property
+    def failed_count(self) -> int:
+        return self._failed_count
+
+    @property
+    def total_count(self) -> int:
+        return self._success_count + self._failed_count
+
+    def write_success(self, manifest_row: dict[str, Any], transform_log_row: dict[str, Any]) -> None:
+        self._write_manifest(manifest_row)
+        self._write_transform_log(transform_log_row)
+        self._increment_pipeline(manifest_row.get("pipeline_name", ""), success=True)
+        self._success_count += 1
+
+    def write_failure(
+        self,
+        manifest_row: dict[str, Any],
+        transform_log_row: dict[str, Any],
+        failed_row: dict[str, Any],
+    ) -> None:
+        self._write_manifest(manifest_row)
+        self._write_transform_log(transform_log_row)
+        self._write_failed(failed_row)
+        self._increment_pipeline(manifest_row.get("pipeline_name", ""), success=False)
+        self._failed_count += 1
+
+    def close(self) -> None:
+        self._write_summary()
+        self._manifest_file.close()
+        self._log_file.close()
+        self._failed_file.close()
+
+    def _write_manifest(self, row: dict[str, Any]) -> None:
+        self._manifest_writer.writerow({col: row.get(col) for col in MANIFEST_COLUMNS})
+
+    def _write_transform_log(self, row: dict[str, Any]) -> None:
+        self._log_file.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    def _write_failed(self, row: dict[str, Any]) -> None:
+        self._failed_writer.writerow({col: row.get(col) for col in FAILED_COLUMNS})
+
+    def _increment_pipeline(self, pipeline_name: str, success: bool) -> None:
+        counts = self._pipeline_counts.setdefault(pipeline_name, {"total": 0, "success": 0, "failed": 0})
+        counts["total"] += 1
+        if success:
+            counts["success"] += 1
+        else:
+            counts["failed"] += 1
+
+    def _write_summary(self) -> None:
+        if self._pipeline_counts:
+            rows = [
+                {
+                    "pipeline_name": name,
+                    "total": c["total"],
+                    "success": c["success"],
+                    "failed": c["failed"],
+                }
+                for name, c in sorted(self._pipeline_counts.items())
+            ]
+            summary = pd.DataFrame(rows, columns=["pipeline_name", "total", "success", "failed"])
+        else:
+            summary = pd.DataFrame(columns=["pipeline_name", "total", "success", "failed"])
+        summary.to_csv(self.metadata_root / "summary.csv", index=False)
+
+
 class MetadataRecorder:
+    """Legacy metadata recorder that accumulates records in memory and writes at the end.
+
+    Retained for backward compatibility. New code should use MetadataWriter.
+    """
+
     def __init__(self, output_root: str | Path, metadata_dir: str = "metadata") -> None:
         self.output_root = Path(output_root)
         self.metadata_root = self.output_root / metadata_dir

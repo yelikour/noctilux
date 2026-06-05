@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from noctilux.config import load_config, resolve_config, validate_config
 from noctilux.image_io.loader import describe_image, load_image
-from noctilux.metadata import MetadataRecorder
+from noctilux.metadata import MetadataWriter
 from noctilux.pipeline import PipelineExecutionError, build_pipelines
 from noctilux.preview import add_preview_arguments, create_preview_grid
 from noctilux.registry import list_transforms
@@ -163,7 +163,7 @@ def run_command(args: argparse.Namespace) -> int:
 
     saver = OutputSaver(config["output"])
     saver.prepare_directories()
-    metadata = MetadataRecorder(config["output"]["root"], config["output"]["metadata_dir"])
+    writer = MetadataWriter(saver.metadata_root)
 
     iterable = samples
     if config["runtime"].get("show_progress", True):
@@ -174,7 +174,7 @@ def run_command(args: argparse.Namespace) -> int:
         try:
             image, input_info = load_image(sample_path)
         except Exception as exc:
-            _handle_load_failure(config, metadata, sample, pipelines, str(exc))
+            _handle_load_failure(writer, sample, pipelines, str(exc))
             if config["runtime"]["fail_fast"]:
                 raise
             continue
@@ -193,8 +193,8 @@ def run_command(args: argparse.Namespace) -> int:
                     if isinstance(exc, PipelineExecutionError):
                         transform_logs = exc.transform_logs
                         run_seed = exc.run_seed
-                    _record_output_failure(
-                        metadata=metadata,
+                    _record_failure(
+                        writer=writer,
                         sample=sample,
                         pipeline_name=pipeline.name,
                         repeat_index=repeat_index,
@@ -218,8 +218,8 @@ def run_command(args: argparse.Namespace) -> int:
                         image_format=config["output"]["save_format"].upper(),
                     )
                 except Exception as exc:
-                    _record_output_failure(
-                        metadata=metadata,
+                    _record_failure(
+                        writer=writer,
                         sample=sample,
                         pipeline_name=pipeline.name,
                         repeat_index=repeat_index,
@@ -235,8 +235,8 @@ def run_command(args: argparse.Namespace) -> int:
                         raise
                     continue
 
-                metadata.add_manifest_record(
-                    _build_manifest_record(
+                writer.write_success(
+                    manifest_row=_build_manifest_record(
                         sample=sample,
                         pipeline_name=pipeline.name,
                         repeat_index=repeat_index,
@@ -246,10 +246,8 @@ def run_command(args: argparse.Namespace) -> int:
                         seed=run_seed,
                         success=True,
                         error="",
-                    )
-                )
-                metadata.add_transform_log(
-                    _build_transform_record(
+                    ),
+                    transform_log_row=_build_transform_record(
                         sample=sample,
                         pipeline_name=pipeline.name,
                         repeat_index=repeat_index,
@@ -260,17 +258,14 @@ def run_command(args: argparse.Namespace) -> int:
                         output_path=output_path,
                         success=True,
                         error=None,
-                    )
+                    ),
                 )
 
-    metadata.write_all()
-    success_count = sum(1 for row in metadata.manifest_rows if row.get("success"))
-    failed_count = len(metadata.manifest_rows) - success_count
-    total_outputs = len(metadata.manifest_rows)
+    writer.close()
     print(f"total_samples: {len(samples)}")
-    print(f"total_outputs: {total_outputs}")
-    print(f"success_count: {success_count}")
-    print(f"failed_count: {failed_count}")
+    print(f"total_outputs: {writer.total_count}")
+    print(f"success_count: {writer.success_count}")
+    print(f"failed_count: {writer.failed_count}")
     print(f"metadata_path: {saver.metadata_root}")
     LOGGER.info("Completed run. metadata=%s", saver.metadata_root)
     return 0
@@ -358,8 +353,7 @@ def _build_transform_record(
 
 
 def _handle_load_failure(
-    config: dict[str, Any],
-    metadata: MetadataRecorder,
+    writer: MetadataWriter,
     sample: dict[str, Any],
     pipelines: list[Any],
     error: str,
@@ -367,8 +361,8 @@ def _handle_load_failure(
     for pipeline in pipelines:
         for repeat_index in range(pipeline.repeat):
             run_seed = pipeline._resolve_run_seed(sample=sample, repeat_index=repeat_index)
-            _record_output_failure(
-                metadata=metadata,
+            _record_failure(
+                writer=writer,
                 sample=sample,
                 pipeline_name=pipeline.name,
                 repeat_index=repeat_index,
@@ -380,8 +374,8 @@ def _handle_load_failure(
             )
 
 
-def _record_output_failure(
-    metadata: MetadataRecorder,
+def _record_failure(
+    writer: MetadataWriter,
     sample: dict[str, Any],
     pipeline_name: str,
     repeat_index: int,
@@ -391,8 +385,8 @@ def _record_output_failure(
     stage: str,
     error: str,
 ) -> None:
-    metadata.add_manifest_record(
-        _build_manifest_record(
+    writer.write_failure(
+        manifest_row=_build_manifest_record(
             sample=sample,
             pipeline_name=pipeline_name,
             repeat_index=repeat_index,
@@ -402,10 +396,8 @@ def _record_output_failure(
             seed=seed,
             success=False,
             error=error,
-        )
-    )
-    metadata.add_transform_log(
-        _build_transform_record(
+        ),
+        transform_log_row=_build_transform_record(
             sample=sample,
             pipeline_name=pipeline_name,
             repeat_index=repeat_index,
@@ -416,16 +408,16 @@ def _record_output_failure(
             output_path=None,
             success=False,
             error=error,
-        )
-    )
-    metadata.add_failed_image(
-        sample_id=sample["sample_id"],
-        image_path=str(sample["image_path"]),
-        pipeline_name=pipeline_name,
-        repeat_index=repeat_index,
-        seed=seed,
-        stage=stage,
-        error=error,
+        ),
+        failed_row={
+            "sample_id": sample["sample_id"],
+            "image_path": str(sample["image_path"]),
+            "pipeline_name": pipeline_name,
+            "repeat_index": repeat_index,
+            "seed": seed,
+            "stage": stage,
+            "error": error,
+        },
     )
 
 

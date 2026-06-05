@@ -281,13 +281,15 @@ These are CLI-only overrides. YAML `runtime.num_workers` remains supported as th
 - Define seed strategy and resume semantics.
 - No code changes.
 
-### v0.5.1 — Metadata-Safe Writer Refactor
+### v0.5.1 — Metadata-Safe Writer Refactor (completed)
 
-- Replace `MetadataRecorder` with streaming `MetadataWriter`.
-- `write_result` appends to CSV/JSONL immediately.
-- `finalize` writes `summary.csv` at the end.
-- Keep serial execution unchanged.
-- All existing tests must pass.
+- Replaced `MetadataRecorder` with streaming `MetadataWriter` in CLI run.
+- `MetadataWriter.write_success` and `write_failure` write manifest and transform_log rows immediately.
+- `MetadataWriter.close` writes `summary.csv`.
+- Internal counters track success/failed counts for summary.
+- `MetadataRecorder` retained for backward compatibility.
+- Serial execution unchanged. All existing tests pass.
+- Parallel and resume not yet implemented.
 
 ### v0.5.2 — Serial Resume
 

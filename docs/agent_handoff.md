@@ -71,6 +71,7 @@ Metadata output structure from `noctilux run`:
 - `v0.4.1`: OpenCV backend CI coverage, unified installation instructions, improved tests.
 - `v0.4.2`: CI maintenance — updated GitHub Actions to `checkout@v6` and `setup-python@v6` to reduce Node.js deprecation warnings.
 - `v0.5.0`: parallel/resume design documentation — `docs/parallel_resume_design.md`, metadata-safe writer architecture, resume/skip-existing/retry-failed strategy, seed determinism analysis.
+- `v0.5.1`: metadata-safe writer refactor — `MetadataWriter` with streaming writes replaces in-memory `MetadataRecorder` in CLI run. Execution still serial.
 
 Important tag state:
 
