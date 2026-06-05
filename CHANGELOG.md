@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.5
+
+- Added `CONTRIBUTING.md` with setup, guidelines, and contributing workflow.
+- Updated `README.md` badges and removed private-visibility note (repository is now public).
+- Applied GitHub repository description and topics.
+- Updated `docs/public_readiness.md` to reflect public visibility.
+- Updated `docs/github_public_setup.md` to mark visibility transition as completed.
+- Updated `docs/agent_handoff.md` with v0.3.5 record and public status.
+
 ## 0.3.4
 
 - Added `docs/github_public_setup.md` with suggested repository metadata and public transition steps.

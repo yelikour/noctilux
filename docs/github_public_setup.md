@@ -1,27 +1,28 @@
 # GitHub Public Setup Guide
 
-This document provides suggestions for making the Noctilux repository public.
+This document records the public visibility transition for the Noctilux repository.
 
-## Suggested Repository Description
+Status: **Completed** (v0.3.5). The repository is now public.
+
+## Repository Description (applied)
 
 ```
 Offline image batch processing and augmentation toolkit — YAML-driven, reproducible, metadata-traceable pipelines for pre-training data preparation.
 ```
 
-## Suggested Topics
+## Topics (applied)
 
-- `image-processing`
-- `data-augmentation`
-- `computer-vision`
-- `python`
-- `pillow`
-- `numpy`
-- `cli`
-- `dataset-tools`
-- `offline-processing`
-- `yaml-config`
+`image-processing`, `data-augmentation`, `computer-vision`, `python`, `pillow`, `numpy`, `cli`, `dataset-tools`, `offline-processing`, `yaml-config`
 
-## Pre-Public Manual Checklist
+```
+Offline image batch processing and augmentation toolkit — YAML-driven, reproducible, metadata-traceable pipelines for pre-training data preparation.
+```
+
+## Topics (applied)
+
+`image-processing`, `data-augmentation`, `computer-vision`, `python`, `pillow`, `numpy`, `cli`, `dataset-tools`, `offline-processing`, `yaml-config`
+
+## Pre-Public Checklist (completed)
 
 Before changing the repository from private to public:
 
@@ -32,7 +33,7 @@ Before changing the repository from private to public:
 5. Verify `outputs/` is not tracked by git.
 6. Confirm the `v0.3.0` tag has not been moved.
 
-## Making the Repository Public
+## Visibility Change (completed)
 
 These steps must be performed manually by the repository owner. Agents must not automate this change.
 
@@ -41,7 +42,11 @@ These steps must be performed manually by the repository owner. Agents must not 
 3. Select **Make public**.
 4. Confirm the action.
 
-## Post-Public Recommendations
+## Post-Public Status
+
+- CI badge renders correctly in `README.md`.
+- All documentation links are accessible.
+- Repository description and topics are set.
 
 - Verify the CI badge renders correctly in `README.md`.
 - Verify all documentation links are accessible.

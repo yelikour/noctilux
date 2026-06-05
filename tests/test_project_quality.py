@@ -151,3 +151,17 @@ def test_no_sensitive_patterns_in_docs() -> None:
         text = path.read_text(encoding="utf-8")
         for pattern in dangerous_patterns:
             assert pattern not in text, f"Found '{pattern}' in {path}"
+
+
+def test_contributing_exists() -> None:
+    assert Path("CONTRIBUTING.md").exists()
+
+
+def test_readme_mentions_contributing() -> None:
+    text = Path("README.md").read_text(encoding="utf-8")
+    assert "CONTRIBUTING.md" in text
+
+
+def test_readme_no_private_note() -> None:
+    text = Path("README.md").read_text(encoding="utf-8")
+    assert "currently private" not in text.lower()

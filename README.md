@@ -3,13 +3,11 @@
 [![CI](https://github.com/yelikour/noctilux/actions/workflows/ci.yml/badge.svg)](https://github.com/yelikour/noctilux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.3.4-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.3.5-orange.svg)](CHANGELOG.md)
 
 **Noctilux** is a general-purpose offline image batch processing and augmentation toolkit. It uses YAML configs to define reproducible, traceable image processing pipelines for pre-training data preparation.
 
 Noctilux 是一个通用的离线图像批处理与增强工具。它面向训练前的数据准备阶段，使用 YAML 配置定义可复现、可追溯、可扩展的图像处理流水线，并将输出图片与 metadata 一起落盘。
-
-Note: This repository is currently private. CI badges may not render until the repository is made public.
 
 ## Features
 
@@ -23,7 +21,7 @@ Note: This repository is currently private. CI badges may not render until the r
 
 ## Current Status
 
-- Version: `0.3.4`
+- Version: `0.3.5`
 - Execution: serial (parallel planned for v0.5.0)
 - Backends: Pillow + NumPy only
 - Python: 3.10, 3.11, 3.12 (CI-tested)
@@ -301,6 +299,12 @@ Officially tested Python versions: 3.10, 3.11, 3.12. Python 3.13 may work locall
 - [docs/github_public_setup.md](docs/github_public_setup.md)
 
 ## 新增 transform
+
+新增 transform 的完整示例见 [docs/adding_new_transform.md](docs/adding_new_transform.md)。
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, guidelines, and how to add new transforms.
 
 新增 transform 的完整示例见 [docs/adding_new_transform.md](docs/adding_new_transform.md)。
 

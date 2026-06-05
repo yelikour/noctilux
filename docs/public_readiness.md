@@ -4,7 +4,7 @@ This document tracks what needs to be verified before making the Noctilux reposi
 
 Use this checklist before switching the repository from private to public. See also `docs/github_public_setup.md` for suggested metadata and manual steps.
 
-Current status: v0.3.4 public-readiness polish.
+Current status: The repository is now public (as of v0.3.5). This checklist was completed before the visibility change.
 
 ## Repository Basics
 
@@ -83,11 +83,10 @@ Current status: v0.3.4 public-readiness polish.
 
 ## Current Publication Scope
 
-- Noctilux does not publish to PyPI yet
-- Noctilux does not create GitHub Releases yet
-- Distribution is via `git clone` and `pip install -e .`
-- The repository is currently private; switching to public requires completing this checklist
-- Public visibility change must be performed manually by the repository owner
+- The repository is now public.
+- Noctilux does not publish to PyPI yet.
+- Noctilux does not create GitHub Releases yet.
+- Distribution is via `git clone` and `pip install -e .`.
 
 ## Known Historical Notes
 
