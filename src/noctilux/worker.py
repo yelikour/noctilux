@@ -101,7 +101,7 @@ def process_task(task: ProcessingTask) -> ProcessingResult:
             image=output_image,
             path=task.output_path,
             output_format=task.output_config["save_format"],
-            overwrite=True,
+            overwrite=bool(task.output_config.get("overwrite", False)),
             jpg_quality=task.output_config["jpg_quality"],
             png_compression=task.output_config["png_compression"],
         )
@@ -143,28 +143,54 @@ def pre_allocate_output_paths(
     samples: list[dict[str, Any]],
     pipelines: list[Any],
     output_config: dict[str, Any],
+    include_keys: set[tuple[str, str, int]] | None = None,
 ) -> dict[tuple[str, str, int], Path]:
-    """Pre-compute output paths for all (sample_id, pipeline_name, repeat_index) tuples.
+    """Pre-compute globally unique output paths for processing tasks.
 
-    Returns a dict keyed by (sample_id, pipeline_name, repeat_index) with the
-    pre-allocated output path. Paths are computed without conflict resolution
-    since parallel execution always overwrites.
+    Existing files are avoided when output.overwrite is false. Paths are also
+    reserved in memory so multiple tasks in the same run cannot target the same
+    file. When output.overwrite is true, existing files may be overwritten, but
+    task-to-task collisions within the current run still receive deterministic
+    __dupN suffixes.
     """
     from noctilux.saver import OutputSaver
 
     saver = OutputSaver(output_config)
-    extension = normalize_extension(output_config["save_format"])
-
     paths: dict[tuple[str, str, int], Path] = {}
+    reserved_paths: set[Path] = set()
+
     for sample in samples:
         for pipeline in pipelines:
             for repeat_index in range(pipeline.repeat):
-                sample_path = Path(sample["image_path"])
-                relative_dir = Path()
-                if output_config.get("preserve_subdirs", True):
-                    relative_dir = saver._get_relative_dir(sample)
-                filename = f"{sample_path.stem}__{pipeline.name}__{repeat_index:03d}.{extension}"
-                target = saver.images_root / pipeline.name / relative_dir / filename
-                paths[(sample["sample_id"], pipeline.name, repeat_index)] = target
+                key = (sample["sample_id"], pipeline.name, repeat_index)
+                if include_keys is not None and key not in include_keys:
+                    continue
+                target = _build_base_output_path(sample, pipeline.name, repeat_index, saver)
+                paths[key] = _reserve_output_path(target, saver, reserved_paths)
 
     return paths
+
+
+def _build_base_output_path(sample: dict[str, Any], pipeline_name: str, repeat_index: int, saver: Any) -> Path:
+    extension = normalize_extension(saver.output_config["save_format"])
+    sample_path = Path(sample["image_path"])
+    relative_dir = Path()
+    if saver.output_config.get("preserve_subdirs", True):
+        relative_dir = saver._get_relative_dir(sample)
+    filename = f"{sample_path.stem}__{pipeline_name}__{repeat_index:03d}.{extension}"
+    return saver.images_root / pipeline_name / relative_dir / filename
+
+
+def _reserve_output_path(target: Path, saver: Any, reserved_paths: set[Path]) -> Path:
+    overwrite = bool(saver.output_config.get("overwrite", False))
+    counter = 0
+
+    while True:
+        candidate = target if counter == 0 else target.with_name(f"{target.stem}__dup{counter}{target.suffix}")
+        candidate = saver._ensure_safe_path(candidate)
+        disk_conflict = candidate.exists() and not overwrite
+        run_conflict = candidate in reserved_paths
+        if not disk_conflict and not run_conflict:
+            reserved_paths.add(candidate)
+            return candidate
+        counter += 1

@@ -163,6 +163,8 @@ def run_command(args: argparse.Namespace) -> int:
 
     num_workers_override = getattr(args, "num_workers", None)
     if num_workers_override is not None:
+        if num_workers_override < 1:
+            raise ValueError("--num-workers must be >= 1.")
         config["runtime"]["num_workers"] = num_workers_override
 
     samples: list[dict[str, Any]]
@@ -233,7 +235,7 @@ def _run_serial(
         skip_keys = load_failed_keys(saver.metadata_root)
         LOGGER.info("Retry-failed mode: %d failed outputs will be retried.", len(skip_keys))
 
-    writer = MetadataWriter(saver.metadata_root)
+    writer = MetadataWriter(saver.metadata_root, append=do_resume)
     skipped_count = 0
 
     iterable = samples
@@ -386,8 +388,6 @@ def _run_parallel(
         skip_keys = load_failed_keys(saver.metadata_root)
         LOGGER.info("Retry-failed mode: %d failed outputs will be retried.", len(skip_keys))
 
-    output_paths = pre_allocate_output_paths(samples, pipelines, config["output"])
-
     pipeline_configs: dict[str, dict[str, Any]] = {}
     for pipeline in pipelines:
         pipeline_configs[pipeline.name] = {
@@ -395,7 +395,8 @@ def _run_parallel(
             "transforms": pipeline.transforms,
         }
 
-    tasks: list[ProcessingTask] = []
+    pending_tasks: list[tuple[dict[str, Any], Any, int]] = []
+    pending_keys: set[tuple[str, str, int]] = set()
     skipped_count = 0
 
     for sample in samples:
@@ -416,27 +417,37 @@ def _run_parallel(
                         skipped_count += 1
                         continue
 
-                output_path = output_paths.get((sample["sample_id"], pipeline.name, repeat_index))
-                if output_path is None:
-                    output_path = saver.build_output_path(sample, pipeline.name, repeat_index)
+                pending_tasks.append((sample, pipeline, repeat_index))
+                pending_keys.add((sample["sample_id"], pipeline.name, repeat_index))
 
-                seed = pipeline.seed
-                tasks.append(
-                    ProcessingTask(
-                        sample_id=sample["sample_id"],
-                        image_path=Path(sample["image_path"]),
-                        pipeline_config=pipeline_configs[pipeline.name],
-                        pipeline_name=pipeline.name,
-                        repeat_index=repeat_index,
-                        seed=seed,
-                        output_path=output_path,
-                        output_config=config["output"],
-                        sample=sample,
-                    )
-                )
+    output_paths = pre_allocate_output_paths(
+        samples,
+        pipelines,
+        config["output"],
+        include_keys=pending_keys,
+    )
 
-    writer = MetadataWriter(saver.metadata_root)
+    tasks: list[ProcessingTask] = []
+    for sample, pipeline, repeat_index in pending_tasks:
+        output_path = output_paths[(sample["sample_id"], pipeline.name, repeat_index)]
+        seed = pipeline.seed
+        tasks.append(
+            ProcessingTask(
+                sample_id=sample["sample_id"],
+                image_path=Path(sample["image_path"]),
+                pipeline_config=pipeline_configs[pipeline.name],
+                pipeline_name=pipeline.name,
+                repeat_index=repeat_index,
+                seed=seed,
+                output_path=output_path,
+                output_config=config["output"],
+                sample=sample,
+            )
+        )
+
+    writer = MetadataWriter(saver.metadata_root, append=do_resume)
     fail_fast = config["runtime"].get("fail_fast", False)
+    skip_broken_images = config["runtime"].get("skip_broken_images", True)
 
     LOGGER.warning(
         "Parallel execution is experimental in v0.5.x. "
@@ -451,59 +462,65 @@ def _run_parallel(
 
     show_progress = config["runtime"].get("show_progress", True)
 
-    with ProcessPoolExecutor(max_workers=num_workers) as executor:
-        futures = [executor.submit(process_task, task) for task in tasks]
-        future_iter = tqdm(futures, desc="Processing", unit="task") if show_progress else futures
+    try:
+        with ProcessPoolExecutor(max_workers=num_workers) as executor:
+            futures = [executor.submit(process_task, task) for task in tasks]
+            future_iter = tqdm(futures, desc="Processing", unit="task") if show_progress else futures
 
-        for future in future_iter:
-            result = future.result()
+            for future in future_iter:
+                try:
+                    result = future.result()
+                except Exception as exc:
+                    raise RuntimeError(f"Parallel worker failed before returning a result: {exc}") from exc
 
-            if result.success:
-                writer.write_success(
-                    manifest_row=_build_manifest_record(
-                        sample=_find_sample(samples, result.sample_id),
-                        pipeline_name=result.pipeline_name,
-                        repeat_index=result.repeat_index,
-                        input_info=result.input_info,
-                        output_info=result.output_info,
-                        output_path=result.output_path,
-                        seed=result.seed,
-                        success=True,
-                        error="",
-                    ),
-                    transform_log_row=_build_transform_record(
-                        sample=_find_sample(samples, result.sample_id),
-                        pipeline_name=result.pipeline_name,
-                        repeat_index=result.repeat_index,
-                        seed=result.seed,
-                        transforms=result.transform_log,
-                        input_info=result.input_info,
-                        output_info=result.output_info,
-                        output_path=result.output_path,
-                        success=True,
-                        error=None,
-                    ),
-                )
-            else:
-                sample = _find_sample(samples, result.sample_id)
-                _record_failure(
-                    writer=writer,
-                    sample=sample,
-                    pipeline_name=result.pipeline_name,
-                    repeat_index=result.repeat_index,
-                    seed=result.seed,
-                    input_info=result.input_info,
-                    transforms=result.transform_log,
-                    stage=result.stage,
-                    error=result.error or "",
-                )
-                if fail_fast:
-                    raise RuntimeError(
-                        f"Task failed in fail-fast mode: "
-                        f"{result.sample_id}/{result.pipeline_name}/{result.repeat_index}: {result.error}"
+                if result.success:
+                    sample = _find_sample(samples, result.sample_id)
+                    writer.write_success(
+                        manifest_row=_build_manifest_record(
+                            sample=sample,
+                            pipeline_name=result.pipeline_name,
+                            repeat_index=result.repeat_index,
+                            input_info=result.input_info,
+                            output_info=result.output_info,
+                            output_path=result.output_path,
+                            seed=result.seed,
+                            success=True,
+                            error="",
+                        ),
+                        transform_log_row=_build_transform_record(
+                            sample=sample,
+                            pipeline_name=result.pipeline_name,
+                            repeat_index=result.repeat_index,
+                            seed=result.seed,
+                            transforms=result.transform_log,
+                            input_info=result.input_info,
+                            output_info=result.output_info,
+                            output_path=result.output_path,
+                            success=True,
+                            error=None,
+                        ),
                     )
-
-    writer.close()
+                else:
+                    sample = _find_sample(samples, result.sample_id)
+                    _record_failure(
+                        writer=writer,
+                        sample=sample,
+                        pipeline_name=result.pipeline_name,
+                        repeat_index=result.repeat_index,
+                        seed=result.seed,
+                        input_info=result.input_info,
+                        transforms=result.transform_log,
+                        stage=result.stage,
+                        error=result.error or "",
+                    )
+                    if fail_fast or not skip_broken_images:
+                        mode = "fail-fast" if fail_fast else "skip_broken_images=False"
+                        raise RuntimeError(
+                            f"Task failed in {mode} mode: "
+                            f"{result.sample_id}/{result.pipeline_name}/{result.repeat_index}: {result.error}"
+                        )
+    finally:
+        writer.close()
     print(f"total_samples: {len(samples)}")
     print(f"total_outputs: {writer.total_count}")
     print(f"success_count: {writer.success_count}")

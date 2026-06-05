@@ -75,6 +75,7 @@ Metadata output structure from `noctilux run`:
 - `v0.5.2`: serial resume support — `--resume`, `--skip-existing`, `--retry-failed` CLI flags. Added `src/noctilux/resume.py` module. Execution still serial. Parallel not yet implemented.
 - `v0.5.3`: experimental process-pool prototype — `ProcessPoolExecutor` parallel execution via `--num-workers N`. Added `src/noctilux/worker.py` with `ProcessingTask`/`ProcessingResult` dataclasses. Serial execution unchanged when `num_workers=1`.
 - `v0.5.4`: parallel stabilization — 28 parallel tests covering determinism, failure scenarios, resume/skip/retry boundaries. Added experimental warning and `num_workers` status in run summary. Serial default unchanged.
+- `v0.5.5`: parallel audit fixes — safe overwrite handling, globally unique parallel output paths, resume metadata preservation, parallel `skip_broken_images=False` alignment, MetadataWriter close on parallel exceptions, and CLI `num_workers` validation.
 
 Important tag state:
 

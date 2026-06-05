@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import pytest
 import yaml
 
 from noctilux.worker import (
@@ -83,6 +84,8 @@ def _create_parallel_config(
     num_images: int = 3,
     pipelines: list[dict[str, Any]] | None = None,
     skip_broken_images: bool = True,
+    overwrite: bool = True,
+    preserve_subdirs: bool = False,
 ) -> Path:
     from PIL import Image
 
@@ -115,8 +118,8 @@ def _create_parallel_config(
             "save_format": "jpg",
             "jpg_quality": 95,
             "png_compression": 3,
-            "overwrite": True,
-            "preserve_subdirs": False,
+            "overwrite": overwrite,
+            "preserve_subdirs": preserve_subdirs,
         },
         "runtime": {
             "dry_run": False,
@@ -129,6 +132,65 @@ def _create_parallel_config(
     }
 
     config_path = tmp_path / "config" / "test.yaml"
+    config_path.parent.mkdir(exist_ok=True)
+    config_path.write_text(yaml.dump(config, default_flow_style=False), encoding="utf-8")
+    return config_path
+
+
+def _create_collision_config(
+    tmp_path: Path,
+    relative_names: list[str],
+    *,
+    overwrite: bool = False,
+    preserve_subdirs: bool = False,
+    skip_broken_images: bool = True,
+    pipelines: list[dict[str, Any]] | None = None,
+) -> Path:
+    from PIL import Image
+
+    image_dir = tmp_path / "images"
+    image_dir.mkdir(exist_ok=True)
+    for index, relative_name in enumerate(relative_names):
+        path = image_dir / relative_name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        img = Image.new("RGB", (64, 64), color=(index * 40, 64, 32))
+        img.save(path)
+
+    if pipelines is None:
+        pipelines = [
+            {
+                "name": "resize_test",
+                "transforms": [
+                    {"name": "resize_long_edge", "params": {"long_edge": 32}},
+                ],
+            }
+        ]
+
+    config = {
+        "project": {"name": "collision_test", "seed": 42},
+        "input": {"mode": "folder", "image_root": str(image_dir)},
+        "output": {
+            "root": str(tmp_path / "output"),
+            "image_dir": "images",
+            "metadata_dir": "metadata",
+            "log_dir": "logs",
+            "preview_dir": "previews",
+            "save_format": "jpg",
+            "jpg_quality": 95,
+            "png_compression": 3,
+            "overwrite": overwrite,
+            "preserve_subdirs": preserve_subdirs,
+        },
+        "runtime": {
+            "dry_run": False,
+            "num_workers": 1,
+            "skip_broken_images": skip_broken_images,
+            "fail_fast": False,
+            "show_progress": False,
+        },
+        "pipelines": pipelines,
+    }
+    config_path = tmp_path / "config" / "collision.yaml"
     config_path.parent.mkdir(exist_ok=True)
     config_path.write_text(yaml.dump(config, default_flow_style=False), encoding="utf-8")
     return config_path
@@ -217,6 +279,62 @@ def test_pre_allocate_paths_multiple_repeats(tmp_path: Path) -> None:
     assert len(paths) == 3
     for i in range(3):
         assert (sample["sample_id"], "p1", i) in paths
+
+
+
+
+def test_pre_allocate_paths_unique_same_stem_different_dirs(tmp_path: Path) -> None:
+    from noctilux.pipeline import AugmentPipeline
+
+    output_config = _make_output_config(tmp_path)
+    output_config["overwrite"] = False
+    output_config["preserve_subdirs"] = False
+    samples = [
+        {
+            "sample_id": "a",
+            "image_path": str(tmp_path / "a" / "same.jpg"),
+            "metadata": {"relative_path": "a/same.jpg"},
+        },
+        {
+            "sample_id": "b",
+            "image_path": str(tmp_path / "b" / "same.jpg"),
+            "metadata": {"relative_path": "b/same.jpg"},
+        },
+    ]
+    pipeline = AugmentPipeline(name="p1", transforms=[], seed=1)
+
+    paths = pre_allocate_output_paths(samples, [pipeline], output_config)
+
+    assert len(paths) == 2
+    assert len(set(paths.values())) == 2
+    assert any("__dup1" in path.stem for path in paths.values())
+
+
+def test_pre_allocate_paths_unique_same_stem_different_extensions(tmp_path: Path) -> None:
+    from noctilux.pipeline import AugmentPipeline
+
+    output_config = _make_output_config(tmp_path)
+    output_config["overwrite"] = False
+    output_config["preserve_subdirs"] = False
+    samples = [
+        {
+            "sample_id": "jpg",
+            "image_path": str(tmp_path / "same.jpg"),
+            "metadata": {"relative_path": "same.jpg"},
+        },
+        {
+            "sample_id": "png",
+            "image_path": str(tmp_path / "same.png"),
+            "metadata": {"relative_path": "same.png"},
+        },
+    ]
+    pipeline = AugmentPipeline(name="p1", transforms=[], seed=1)
+
+    paths = pre_allocate_output_paths(samples, [pipeline], output_config)
+
+    assert len(paths) == 2
+    assert len(set(paths.values())) == 2
+    assert any("__dup1" in path.stem for path in paths.values())
 
 
 def test_seed_determinism_serial_vs_worker(tmp_path: Path) -> None:
@@ -336,6 +454,78 @@ def test_summary_consistency_serial_vs_parallel(tmp_path: Path) -> None:
     assert summary_s["success"].tolist() == summary_p["success"].tolist()
     assert summary_s["failed"].tolist() == summary_p["failed"].tolist()
     assert summary_s["total"].tolist() == summary_p["total"].tolist()
+
+
+
+
+def test_parallel_overwrite_false_second_run_preserves_existing_output(tmp_path: Path) -> None:
+    config_path = _create_parallel_config(tmp_path, num_images=1, overwrite=False)
+
+    result1 = _run_cli(config_path, ["--num-workers", "2"])
+    assert result1.returncode == 0
+    manifest1 = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    first_output = Path(manifest1.iloc[0]["output_path"])
+    sentinel = b"do-not-overwrite"
+    first_output.write_bytes(sentinel)
+
+    result2 = _run_cli(config_path, ["--num-workers", "2"])
+    assert result2.returncode == 0
+    assert first_output.read_bytes() == sentinel
+
+    manifest2 = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    second_output = Path(manifest2.iloc[0]["output_path"])
+    assert second_output != first_output
+    assert "__dup1" in second_output.stem
+    assert second_output.exists()
+
+
+def test_parallel_overwrite_true_second_run_reuses_output_path(tmp_path: Path) -> None:
+    config_path = _create_parallel_config(tmp_path, num_images=1, overwrite=True)
+
+    result1 = _run_cli(config_path, ["--num-workers", "2"])
+    assert result1.returncode == 0
+    manifest1 = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    first_output = Path(manifest1.iloc[0]["output_path"])
+    first_output.write_bytes(b"replace-me")
+
+    result2 = _run_cli(config_path, ["--num-workers", "2"])
+    assert result2.returncode == 0
+    manifest2 = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    second_output = Path(manifest2.iloc[0]["output_path"])
+    assert second_output == first_output
+    assert first_output.read_bytes() != b"replace-me"
+
+
+def test_parallel_same_stem_different_dirs_preserve_false_no_collisions(tmp_path: Path) -> None:
+    config_path = _create_collision_config(
+        tmp_path,
+        ["a/same.jpg", "b/same.jpg"],
+        overwrite=False,
+        preserve_subdirs=False,
+    )
+
+    result = _run_cli(config_path, ["--num-workers", "2"])
+    assert result.returncode == 0
+    manifest = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    assert len(manifest) == 2
+    assert manifest["output_path"].nunique() == 2
+    assert any("__dup1" in Path(path).stem for path in manifest["output_path"])
+
+
+def test_parallel_same_stem_different_extensions_no_collisions(tmp_path: Path) -> None:
+    config_path = _create_collision_config(
+        tmp_path,
+        ["same.jpg", "same.png"],
+        overwrite=False,
+        preserve_subdirs=False,
+    )
+
+    result = _run_cli(config_path, ["--num-workers", "2"])
+    assert result.returncode == 0
+    manifest = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    assert len(manifest) == 2
+    assert manifest["output_path"].nunique() == 2
+    assert any("__dup1" in Path(path).stem for path in manifest["output_path"])
 
 
 def test_parallel_repeat_no_filename_collisions(tmp_path: Path) -> None:
@@ -560,6 +750,142 @@ def test_parallel_single_failure_does_not_crash_run(tmp_path: Path) -> None:
     assert "success_count:" in result.stdout
 
 
+
+
+def test_parallel_load_failure_respects_skip_broken_false(tmp_path: Path) -> None:
+    image_dir = tmp_path / "images"
+    image_dir.mkdir(exist_ok=True)
+    (image_dir / "corrupt.jpg").write_bytes(b"not an image")
+    config_path = _create_collision_config(
+        tmp_path,
+        [],
+        skip_broken_images=False,
+    )
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config["input"]["image_root"] = str(image_dir)
+    config_path.write_text(yaml.dump(config, default_flow_style=False), encoding="utf-8")
+
+    result = _run_cli(config_path, ["--num-workers", "2"])
+
+    assert result.returncode == 1
+    assert "skip_broken_images=False" in result.stderr
+    failed = pd.read_csv(tmp_path / "output" / "metadata" / "failed_images.csv")
+    assert failed.iloc[0]["stage"] == "load_image"
+
+
+def test_parallel_transform_failure_respects_skip_broken_false(tmp_path: Path) -> None:
+    config_path = _create_parallel_config(
+        tmp_path,
+        num_images=1,
+        skip_broken_images=False,
+        pipelines=[
+            {
+                "name": "bad_pipe",
+                "transforms": [
+                    {"name": "resize_long_edge", "params": {"long_edge": -1}},
+                ],
+            }
+        ],
+    )
+
+    result = _run_cli(config_path, ["--num-workers", "2"])
+
+    assert result.returncode == 1
+    assert "skip_broken_images=False" in result.stderr
+    failed = pd.read_csv(tmp_path / "output" / "metadata" / "failed_images.csv")
+    assert failed.iloc[0]["stage"] == "transform"
+
+
+def test_cli_num_workers_zero_rejected(tmp_path: Path) -> None:
+    config_path = _create_parallel_config(tmp_path)
+
+    result = _run_cli(config_path, ["--num-workers", "0"])
+
+    assert result.returncode == 1
+    assert "--num-workers must be >= 1" in result.stderr
+
+
+def test_cli_num_workers_negative_rejected(tmp_path: Path) -> None:
+    config_path = _create_parallel_config(tmp_path)
+
+    result = _run_cli(config_path, ["--num-workers", "-1"])
+
+    assert result.returncode == 1
+    assert "--num-workers must be >= 1" in result.stderr
+
+
+def test_parallel_writer_closes_on_future_exception(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from noctilux.cli import _load_and_validate, _run_parallel
+    from noctilux.pipeline import build_pipelines
+    from noctilux.scanner import scan_inputs
+
+    config_path = _create_parallel_config(tmp_path, num_images=2, overwrite=False)
+    config = _load_and_validate(config_path)
+    samples = scan_inputs(config)
+    pipelines = build_pipelines(config)
+
+    class FakeFuture:
+        def __init__(self, result: ProcessingResult | None = None, error: Exception | None = None) -> None:
+            self._result = result
+            self._error = error
+
+        def result(self) -> ProcessingResult:
+            if self._error is not None:
+                raise self._error
+            assert self._result is not None
+            return self._result
+
+    class FakeExecutor:
+        def __init__(self, max_workers: int) -> None:
+            self.max_workers = max_workers
+            self.submitted = 0
+
+        def __enter__(self) -> FakeExecutor:
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, traceback: object) -> bool:
+            return False
+
+        def submit(self, fn: object, task: ProcessingTask) -> FakeFuture:
+            self.submitted += 1
+            if self.submitted == 1:
+                return FakeFuture(
+                    ProcessingResult(
+                        sample_id=task.sample_id,
+                        pipeline_name=task.pipeline_name,
+                        repeat_index=task.repeat_index,
+                        seed=task.seed,
+                        output_path=task.output_path,
+                        success=True,
+                        stage="",
+                        error=None,
+                        input_info={"width": 64, "height": 64, "format": "JPEG"},
+                        output_info={"width": 32, "height": 32, "format": "JPG"},
+                        transform_log=[],
+                    )
+                )
+            return FakeFuture(error=RuntimeError("synthetic future failure"))
+
+    monkeypatch.setattr("concurrent.futures.ProcessPoolExecutor", FakeExecutor)
+
+    with pytest.raises(RuntimeError, match="Parallel worker failed before returning a result"):
+        _run_parallel(
+            config=config,
+            samples=samples,
+            pipelines=pipelines,
+            num_workers=2,
+            do_resume=False,
+            do_skip_existing=False,
+            do_retry_failed=False,
+        )
+
+    metadata_dir = tmp_path / "output" / "metadata"
+    manifest = pd.read_csv(metadata_dir / "manifest.csv")
+    summary = pd.read_csv(metadata_dir / "summary.csv")
+    assert len(manifest) == 1
+    assert summary.iloc[0]["total"] == 1
+    assert summary.iloc[0]["success"] == 1
+
 # =========================================================================
 # Resume / skip-existing / retry-failed parallel boundary tests
 # =========================================================================
@@ -644,6 +970,53 @@ def test_parallel_retry_failed_only_processes_failed(tmp_path: Path) -> None:
     assert "retry_failed_enabled: True" in result2.stdout
 
 
+
+
+def test_parallel_skip_existing_skipped_items_not_written_to_metadata(tmp_path: Path) -> None:
+    config_path = _create_parallel_config(tmp_path)
+
+    result1 = _run_cli(config_path, ["--num-workers", "2"])
+    assert result1.returncode == 0
+    result2 = _run_cli(config_path, ["--num-workers", "2", "--skip-existing"])
+    assert result2.returncode == 0
+    assert "skipped_count: 3" in result2.stdout
+
+    manifest = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    summary = pd.read_csv(tmp_path / "output" / "metadata" / "summary.csv")
+    assert len(manifest) == 0
+    assert len(summary) == 0
+
+
+def test_parallel_retry_failed_only_submits_failed_keys(tmp_path: Path) -> None:
+    config_path = _create_parallel_config(tmp_path, num_images=2)
+
+    result1 = _run_cli(config_path, ["--num-workers", "2"])
+    assert result1.returncode == 0
+    manifest = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    failed_key = manifest.iloc[0]
+    pd.DataFrame(
+        [
+            {
+                "sample_id": failed_key["sample_id"],
+                "image_path": failed_key["original_path"],
+                "pipeline_name": failed_key["pipeline_name"],
+                "repeat_index": failed_key["repeat_index"],
+                "seed": failed_key["seed"],
+                "stage": "transform",
+                "error": "synthetic failure",
+            }
+        ]
+    ).to_csv(tmp_path / "output" / "metadata" / "failed_images.csv", index=False)
+
+    result2 = _run_cli(config_path, ["--num-workers", "2", "--retry-failed"])
+    assert result2.returncode == 0
+    assert "success_count: 1" in result2.stdout
+    assert "skipped_count: 1" in result2.stdout
+    manifest_after = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    assert len(manifest_after) == 1
+    assert manifest_after.iloc[0]["sample_id"] == failed_key["sample_id"]
+
+
 def test_parallel_resume_retry_conflict(tmp_path: Path) -> None:
     """--resume and --retry-failed remain mutually exclusive with --num-workers."""
     config_path = _create_parallel_config(tmp_path)
@@ -655,24 +1028,69 @@ def test_parallel_resume_retry_conflict(tmp_path: Path) -> None:
     assert "cannot be used together" in result.stderr
 
 
-def test_parallel_skipped_items_not_in_metadata(tmp_path: Path) -> None:
-    """Skipped items must not appear in new run's metadata (v0.5.2 semantics preserved).
-
-    Resume mode creates a fresh manifest containing only newly processed items.
-    When all items are skipped, the manifest will be empty (header-only).
-    """
+def test_parallel_resume_all_skipped_preserves_metadata(tmp_path: Path) -> None:
+    """--resume keeps old metadata and does not append duplicate rows for skipped tasks."""
     config_path = _create_parallel_config(tmp_path)
 
-    _run_cli(config_path, ["--num-workers", "2"])
-
+    result1 = _run_cli(config_path, ["--num-workers", "2"])
+    assert result1.returncode == 0
     manifest_before = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    log_before = (tmp_path / "output" / "metadata" / "transform_log.jsonl").read_text(encoding="utf-8")
     assert len(manifest_before) == 3
 
-    result = _run_cli(config_path, ["--num-workers", "2", "--resume"])
-    assert "skipped_count: 3" in result.stdout
+    result2 = _run_cli(config_path, ["--num-workers", "2", "--resume"])
+    assert result2.returncode == 0
+    assert "skipped_count: 3" in result2.stdout
+    assert "success_count: 0" in result2.stdout
 
     manifest_after = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
-    assert len(manifest_after) == 0
+    log_after = (tmp_path / "output" / "metadata" / "transform_log.jsonl").read_text(encoding="utf-8")
+    summary_after = pd.read_csv(tmp_path / "output" / "metadata" / "summary.csv")
+    assert len(manifest_after) == 3
+    assert manifest_after["output_path"].tolist() == manifest_before["output_path"].tolist()
+    assert log_after == log_before
+    assert summary_after.iloc[0]["total"] == 3
+    assert summary_after.iloc[0]["success"] == 3
+
+
+def test_parallel_resume_partial_skipped_appends_new_metadata_and_report_reads_all(tmp_path: Path) -> None:
+    from PIL import Image
+
+    config_path = _create_parallel_config(tmp_path, num_images=1, overwrite=False)
+    result1 = _run_cli(config_path, ["--num-workers", "2"])
+    assert result1.returncode == 0
+
+    Image.new("RGB", (64, 64), color=(64, 128, 32)).save(tmp_path / "images" / "img1.jpg")
+    result2 = _run_cli(config_path, ["--num-workers", "2", "--resume"])
+    assert result2.returncode == 0
+    assert "skipped_count: 1" in result2.stdout
+    assert "success_count: 1" in result2.stdout
+
+    metadata_dir = tmp_path / "output" / "metadata"
+    manifest = pd.read_csv(metadata_dir / "manifest.csv")
+    summary = pd.read_csv(metadata_dir / "summary.csv")
+    assert len(manifest) == 2
+    assert manifest["sample_id"].nunique() == 2
+    assert summary.iloc[0]["total"] == 2
+    assert summary.iloc[0]["success"] == 2
+
+    report_path = tmp_path / "report.md"
+    report = subprocess.run(
+        [
+            "noctilux",
+            "report",
+            "--metadata",
+            str(metadata_dir),
+            "--output",
+            str(report_path),
+            "--overwrite",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert report.returncode == 0
+    assert "| Total records | 2 |" in report_path.read_text(encoding="utf-8")
 
 
 # =========================================================================

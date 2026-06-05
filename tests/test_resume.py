@@ -183,6 +183,33 @@ def test_cli_resume_skips_completed(tmp_path: Path) -> None:
     assert "success_count: 0" in result2.stdout
 
 
+def test_cli_resume_preserves_existing_metadata(tmp_path: Path) -> None:
+    config_path = _create_simple_config(tmp_path, with_sample_image=True)
+    result = subprocess.run(
+        ["noctilux", "run", "--config", str(config_path)],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0
+    metadata_dir = tmp_path / "output" / "metadata"
+    manifest_before = pd.read_csv(metadata_dir / "manifest.csv")
+    log_before = (metadata_dir / "transform_log.jsonl").read_text(encoding="utf-8")
+
+    result2 = subprocess.run(
+        ["noctilux", "run", "--config", str(config_path), "--resume"],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert result2.returncode == 0
+    manifest_after = pd.read_csv(metadata_dir / "manifest.csv")
+    log_after = (metadata_dir / "transform_log.jsonl").read_text(encoding="utf-8")
+    summary_after = pd.read_csv(metadata_dir / "summary.csv")
+
+    assert len(manifest_after) == 1
+    assert manifest_after["output_path"].tolist() == manifest_before["output_path"].tolist()
+    assert log_after == log_before
+    assert summary_after.iloc[0]["total"] == 1
+    assert summary_after.iloc[0]["success"] == 1
+
+
 def test_cli_skip_existing(tmp_path: Path) -> None:
     config_path = _create_simple_config(tmp_path, with_sample_image=True)
     result = subprocess.run(

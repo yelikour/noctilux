@@ -4,20 +4,22 @@ This document describes the planned parallel execution and resume architecture f
 
 ## Current State
 
-Noctilux v0.5.x uses serial execution only:
+Noctilux v0.5.5 defaults to serial execution and exposes experimental process-pool parallel execution only when `num_workers > 1`:
 
-- `cli.py` iterates over all `(sample, pipeline, repeat_index)` tuples in a single process.
-- `num_workers > 1` logs a warning and still runs serially.
-- All metadata is collected in memory via `MetadataRecorder` and written to disk at the end of the run (`write_all()`).
-- Progress is tracked with a simple `tqdm` wrapper over the sample list.
-- Output paths are generated on the fly by `OutputSaver.build_output_path()` with conflict detection.
+- `num_workers=1` runs the original serial path in `cli.py`.
+- `num_workers > 1` uses `ProcessPoolExecutor` with worker processes that return `ProcessingResult` objects.
+- Metadata is written only by the main process through `MetadataWriter`.
+- `--resume` preserves existing metadata, appends newly processed results, and regenerates `summary.csv` from the full manifest.
+- Parallel output paths are pre-allocated by the main process and are globally unique within the run.
+- `output.overwrite: false` avoids existing files; `output.overwrite: true` may overwrite existing files but still prevents task-to-task collisions in the same run.
+- Parallel mode remains experimental in v0.5.x; stable parallel execution is still planned for v0.6.0.
 
 ### Why Serial is Safe
 
 The current serial design avoids all concurrency problems by construction:
 
 - Only one write to any output path at a time.
-- Metadata is accumulated in a single in-memory object.
+- Metadata writes go through one `MetadataWriter` in the main process.
 - No shared mutable state between iterations.
 - Deterministic seed derivation via `combine_seed()` is order-independent.
 
@@ -101,16 +103,20 @@ class TaskResult:
 
 ### Output Path Pre-allocation
 
-The main process generates all output paths before dispatching tasks. This eliminates race conditions in `OutputSaver._resolve_conflict()`.
+The main process generates output paths for pending tasks before dispatch. It avoids existing files when `output.overwrite` is false and maintains an in-memory reserved path set so two tasks in the same run cannot target the same file.
 
 ```python
-def pre_allocate_paths(samples, pipelines, repeats, output_root):
+def pre_allocate_paths(samples, pipelines, output_config, include_keys=None):
     paths = {}
+    reserved = set()
     for sample in samples:
         for pipeline in pipelines:
-            for r in range(repeats):
+            for r in range(pipeline.repeat):
                 task_key = (sample["sample_id"], pipeline.name, r)
-                paths[task_key] = output_saver.build_output_path(...)
+                if include_keys is not None and task_key not in include_keys:
+                    continue
+                base_path = build_base_output_path(...)
+                paths[task_key] = reserve_unique_path(base_path, reserved)
     return paths
 ```
 
@@ -203,16 +209,17 @@ This is useful when the user knows outputs are correct but wants to re-run the c
 1. Reads `failed_images.csv` from the target metadata directory.
 2. Extracts `(pipeline_name, repeat_index, sample_id)` from failed rows.
 3. Reconstructs tasks for only those tuples.
-4. Replaces failed rows in metadata (not append duplicates).
+4. Writes retry results for the current run; failed-history cleanup remains a future hardening item.
 
 ### Resume Manifest
 
-The resumed run writes a complete manifest that includes both pre-existing and new results. This means:
+The resumed run preserves existing metadata and appends only newly processed results. This means:
 
-- `manifest.csv` contains all outputs (old + new).
-- `transform_log.jsonl` contains all logs (old + new).
-- `summary.csv` is regenerated from the full manifest.
-- `failed_images.csv` reflects the latest state (retried failures removed if they now succeed).
+- Existing successful rows in `manifest.csv` remain in place.
+- Skipped outputs are not duplicated as new metadata rows.
+- Newly processed outputs are appended to `manifest.csv` and `transform_log.jsonl`.
+- `summary.csv` is regenerated from the full manifest, so reports see old and new successful records together.
+- `failed_images.csv` is preserved and new failures append; full failed-history cleanup is deferred to future hardening.
 
 ### Failed Sample Retry Strategy
 
@@ -221,7 +228,7 @@ The resumed run writes a complete manifest that includes both pre-existing and n
 | `--resume` | Skip completed, re-attempt failed |
 | `--skip-existing` | Skip any output that exists on disk |
 | `--retry-failed` | Only re-attempt previously failed samples |
-| `--resume --retry-failed` | Skip completed, re-attempt failed (same as `--resume` alone) |
+| `--resume --retry-failed` | Invalid; the flags are mutually exclusive. |
 | No flags | Start fresh (overwrite if allowed, skip if not) |
 
 ## CLI Parameters
@@ -330,6 +337,18 @@ These are CLI-only overrides. YAML `runtime.num_workers` remains supported as th
 - Serial execution (num_workers=1) unchanged. Metadata schema unchanged. Default remains serial.
 - This is still not "stable parallel execution" — that goal remains at v0.6.0.
 
+### v0.5.5 — Parallel Audit Fixes (completed)
+
+- Fixed parallel overwrite behavior: `output.overwrite: false` avoids existing files and `output.overwrite: true` remains explicit.
+- Fixed parallel output path uniqueness for same-stem inputs, different directories with `preserve_subdirs: false`, and different input extensions.
+- Main process now reserves output paths in memory before task submission to prevent task-to-task collisions.
+- Worker save logic no longer forces overwrite.
+- `--resume` now preserves old metadata, appends new results, and regenerates `summary.csv` from the full manifest.
+- Parallel `skip_broken_images=False` now fails the run after recording load/transform failures.
+- Parallel writer close is protected with `finally` so partial successful results can still produce `summary.csv` after future exceptions.
+- CLI `--num-workers` override is validated and must be >= 1.
+- Serial default remains unchanged. Metadata schema fields remain unchanged.
+
 #### Stabilization Checklist
 
 - [x] Manifest keys match between serial and parallel
@@ -348,6 +367,12 @@ These are CLI-only overrides. YAML `runtime.num_workers` remains supported as th
 - [x] --resume and --retry-failed remain mutually exclusive with --num-workers
 - [x] Skipped items not written to metadata
 - [x] Experimental warning displayed when parallel mode is active
+- [x] Parallel overwrite=false avoids existing output files
+- [x] Parallel output paths are globally unique within a run
+- [x] Resume preserves old metadata and appends new results
+- [x] Parallel skip_broken_images=False fails the run after recording failures
+- [x] MetadataWriter closes on parallel future exceptions
+- [x] CLI --num-workers rejects values < 1
 - [ ] Worker crash recovery (e.g., SIGKILL, OOM) — deferred to v0.6.0
 - [ ] Timeout handling for hung workers — deferred to v0.6.0
 - [ ] Cross-platform (macOS spawn, Windows spawn) validation — deferred to v0.6.0

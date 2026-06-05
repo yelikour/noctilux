@@ -3,7 +3,7 @@
 [![CI](https://github.com/yelikour/noctilux/actions/workflows/ci.yml/badge.svg)](https://github.com/yelikour/noctilux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.5.2-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.5.5-orange.svg)](CHANGELOG.md)
 
 **Noctilux** is a general-purpose offline image batch processing and augmentation toolkit. It uses YAML configs to define reproducible, traceable image processing pipelines for pre-training data preparation.
 
@@ -21,12 +21,12 @@ Noctilux 是一个通用的离线图像批处理与增强工具。它面向训�
 
 ## Current Status
 
-- Version: `0.5.2`
-- Execution: serial (parallel planned for v0.5.x)
+- Version: `0.5.5`
+- Execution: serial by default; experimental parallel mode with `--num-workers N` when N > 1
 - Default backend: Pillow + NumPy
 - Optional backend: OpenCV via `noctilux[opencv]` (CI-tested on Python 3.12)
 - Python: 3.10, 3.11, 3.12 (CI-tested)
-- Not yet supported: parallel processing, annotation sync, PyPI release
+- Not yet supported: stable parallel processing, annotation sync, PyPI release
 
 ## 安装
 
@@ -351,6 +351,8 @@ noctilux run --config configs/examples/quickstart_sample.yaml --num-workers 2
 
 `--resume` and `--retry-failed` are mutually exclusive. `--skip-existing` can be combined with `--resume`. Resume and skip modes work in both serial and parallel modes.
 
+With `--resume`, existing metadata is preserved. Skipped outputs are not duplicated, newly processed outputs are appended, and `summary.csv` is regenerated from the full manifest. With `--skip-existing`, skipped outputs are not written as new metadata rows.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, guidelines, and how to add new transforms.
@@ -361,7 +363,7 @@ Noctilux is in early development. The API may change between minor versions.
 
 - CI-tested Python: 3.10, 3.11, 3.12
 - Backends: Pillow + NumPy
-- Execution: serial (parallel planned)
+- Execution: serial by default; experimental parallel mode available in v0.5.x
 - No PyPI release yet
 
 Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/yelikour/noctilux/issues).
@@ -376,7 +378,7 @@ See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for the full roadmap. Planned milestone
 
 ## 当前限制
 
-- `num_workers` 启用 `ProcessPoolExecutor` 并行执行（实验性，v0.5.3）。默认 1 为串行模式。
+- `num_workers` 启用 `ProcessPoolExecutor` 并行执行（实验性，v0.5.5）。默认 1 为串行模式。
 - OpenCV backend 仅支持 4 个 transform，其余仍使用 Pillow。
 - 尚未实现 detection / segmentation annotation 同步增强。
 - `preview` 只做视觉检查，不会生成 `manifest.csv`、`transform_log.jsonl` 或其他批处理 metadata。

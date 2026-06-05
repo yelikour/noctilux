@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.5
+
+- Fixed parallel overwrite behavior so `output.overwrite: false` avoids existing files and `overwrite: true` is explicit.
+- Fixed parallel output path uniqueness with deterministic in-run conflict suffixes.
+- Preserved metadata during `--resume`; old manifest and transform logs remain, new results append, and summary reflects full metadata.
+- Aligned parallel `skip_broken_images=False` behavior with serial-style failure handling for load and transform failures.
+- Ensured `MetadataWriter` closes on parallel exceptions and writes summary for completed results.
+- Added CLI validation for `--num-workers` so values must be >= 1.
+
 ## 0.5.4
 
 - Added parallel execution stabilization tests (28 total in `tests/test_parallel.py`).

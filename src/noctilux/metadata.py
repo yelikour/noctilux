@@ -64,27 +64,34 @@ class MetadataWriter:
     as the centralized writer for future parallel execution.
     """
 
-    def __init__(self, metadata_root: Path) -> None:
+    def __init__(self, metadata_root: Path, append: bool = False) -> None:
         self.metadata_root = Path(metadata_root)
         self.metadata_root.mkdir(parents=True, exist_ok=True)
 
         self._success_count = 0
         self._failed_count = 0
         self._pipeline_counts: dict[str, dict[str, int]] = {}
+        self._closed = False
 
         self._manifest_path = self.metadata_root / "manifest.csv"
         self._log_path = self.metadata_root / "transform_log.jsonl"
         self._failed_path = self.metadata_root / "failed_images.csv"
 
-        self._manifest_file = self._manifest_path.open("w", encoding="utf-8", newline="")
+        manifest_mode = "a" if append else "w"
+        log_mode = "a" if append else "w"
+        failed_mode = "a" if append else "w"
+
+        self._manifest_file = self._manifest_path.open(manifest_mode, encoding="utf-8", newline="")
         self._manifest_writer = csv.DictWriter(self._manifest_file, fieldnames=MANIFEST_COLUMNS)
-        self._manifest_writer.writeheader()
+        if not append or self._manifest_path.stat().st_size == 0:
+            self._manifest_writer.writeheader()
 
-        self._log_file = self._log_path.open("w", encoding="utf-8")
+        self._log_file = self._log_path.open(log_mode, encoding="utf-8")
 
-        self._failed_file = self._failed_path.open("w", encoding="utf-8", newline="")
+        self._failed_file = self._failed_path.open(failed_mode, encoding="utf-8", newline="")
         self._failed_writer = csv.DictWriter(self._failed_file, fieldnames=FAILED_COLUMNS)
-        self._failed_writer.writeheader()
+        if not append or self._failed_path.stat().st_size == 0:
+            self._failed_writer.writeheader()
 
     @property
     def success_count(self) -> int:
@@ -117,10 +124,13 @@ class MetadataWriter:
         self._failed_count += 1
 
     def close(self) -> None:
+        if self._closed:
+            return
         self._write_summary()
         self._manifest_file.close()
         self._log_file.close()
         self._failed_file.close()
+        self._closed = True
 
     def _write_manifest(self, row: dict[str, Any]) -> None:
         self._manifest_writer.writerow({col: row.get(col) for col in MANIFEST_COLUMNS})
@@ -140,17 +150,25 @@ class MetadataWriter:
             counts["failed"] += 1
 
     def _write_summary(self) -> None:
-        if self._pipeline_counts:
-            rows = [
-                {
-                    "pipeline_name": name,
-                    "total": c["total"],
-                    "success": c["success"],
-                    "failed": c["failed"],
-                }
-                for name, c in sorted(self._pipeline_counts.items())
-            ]
-            summary = pd.DataFrame(rows, columns=["pipeline_name", "total", "success", "failed"])
+        self._manifest_file.flush()
+        try:
+            frame = pd.read_csv(self._manifest_path)
+        except pd.errors.EmptyDataError:
+            frame = pd.DataFrame(columns=MANIFEST_COLUMNS)
+
+        if not frame.empty and {"pipeline_name", "success"}.issubset(frame.columns):
+            success_values = frame["success"]
+            if success_values.dtype != bool:
+                success_values = success_values.astype(str).str.lower().isin({"true", "1", "yes"})
+            summary = (
+                frame.assign(_success=success_values)
+                .groupby("pipeline_name", dropna=False)["_success"]
+                .agg(total="size", success="sum")
+                .reset_index()
+            )
+            summary["success"] = summary["success"].astype(int)
+            summary["failed"] = summary["total"] - summary["success"]
+            summary = summary[["pipeline_name", "total", "success", "failed"]]
         else:
             summary = pd.DataFrame(columns=["pipeline_name", "total", "success", "failed"])
         summary.to_csv(self.metadata_root / "summary.csv", index=False)
