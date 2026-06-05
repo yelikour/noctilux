@@ -3,22 +3,31 @@
 [![CI](https://github.com/yelikour/noctilux/actions/workflows/ci.yml/badge.svg)](https://github.com/yelikour/noctilux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.3.2-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.3.4-orange.svg)](CHANGELOG.md)
+
+**Noctilux** is a general-purpose offline image batch processing and augmentation toolkit. It uses YAML configs to define reproducible, traceable image processing pipelines for pre-training data preparation.
 
 Noctilux 是一个通用的离线图像批处理与增强工具。它面向训练前的数据准备阶段，使用 YAML 配置定义可复现、可追溯、可扩展的图像处理流水线，并将输出图片与 metadata 一起落盘。
 
-说明：当前仓库是 private，GitHub Actions badge 在 private 仓库下可能无法正常显示；仓库切换为 public 后可以正常展示。
+Note: This repository is currently private. CI badges may not render until the repository is made public.
 
-## 项目状态
+## Features
 
-- Current version: `0.3.2`
-- Execution: serial in `v0.3.x`
+- YAML-driven batch processing with `noctilux run`
+- Single-image preview grids with `noctilux preview`
+- Metadata reports with `noctilux report`
+- Manifest generation with `noctilux make-manifest`
+- Config validation with `noctilux inspect-config`
+- 27 registered transforms across 7 categories
+- Full metadata traceability: manifest.csv, transform_log.jsonl, failed_images.csv, summary.csv
+
+## Current Status
+
+- Version: `0.3.4`
+- Execution: serial (parallel planned for v0.5.0)
 - Backends: Pillow + NumPy only
-- Not yet supported:
-  - parallel processing
-  - OpenCV / Albumentations / AugLy
-  - detection / segmentation annotation sync
-  - PyPI release
+- Python: 3.10, 3.11, 3.12 (CI-tested)
+- Not yet supported: parallel processing, OpenCV/Albumentations backends, annotation sync, PyPI release
 
 ## 安装
 
@@ -289,6 +298,7 @@ Officially tested Python versions: 3.10, 3.11, 3.12. Python 3.13 may work locall
 - [docs/adding_new_transform.md](docs/adding_new_transform.md)
 - [docs/agent_handoff.md](docs/agent_handoff.md)
 - [docs/public_readiness.md](docs/public_readiness.md)
+- [docs/github_public_setup.md](docs/github_public_setup.md)
 
 ## 新增 transform
 

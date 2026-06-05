@@ -63,6 +63,7 @@ Metadata output structure from `noctilux run`:
 - `v0.3.1`: report compatibility fix for Python 3.10; corrected report release.
 - `v0.3.2`: agent handoff documentation and contributor guidance.
 - `v0.3.3`: Python version classifier alignment, roadmap correction, public-readiness checklist, documentation consistency tests.
+- `v0.3.4`: public-readiness audit, README polish, GitHub public setup guide, sensitive information scan, public-readiness consistency tests.
 
 Important tag state:
 
@@ -77,7 +78,8 @@ Important tag state:
 
 ## Public Readiness
 
-- Before switching the repository to public, review `docs/public_readiness.md`.
+- Before switching the repository to public, review `docs/public_readiness.md` and `docs/github_public_setup.md`.
+- Changing repository visibility to public must be done manually by the repository owner. Agents must not automate this.
 - Do not publish to PyPI without explicit user approval.
 - Do not create GitHub Releases without explicit user approval.
 
@@ -131,7 +133,7 @@ noctilux report \
 
 ## Suggested Roadmap
 
-- `v0.3.3`: documentation consistency and public-readiness polish.
+- `v0.3.4`: public-readiness audit and polish.
 - `v0.4.0`: optional backend exploration, e.g. OpenCV backend.
 - `v0.5.0`: parallel execution and resume support.
 - `v0.6.0`: detection and segmentation annotation synchronization.

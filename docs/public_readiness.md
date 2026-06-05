@@ -2,7 +2,9 @@
 
 This document tracks what needs to be verified before making the Noctilux repository public.
 
-Use this checklist before switching the repository from private to public.
+Use this checklist before switching the repository from private to public. See also `docs/github_public_setup.md` for suggested metadata and manual steps.
+
+Current status: v0.3.4 public-readiness polish.
 
 ## Repository Basics
 
@@ -20,6 +22,7 @@ Use this checklist before switching the repository from private to public.
 - [ ] `docs/input_formats.md` is accurate
 - [ ] `docs/output_formats.md` is accurate
 - [ ] `docs/adding_new_transform.md` is accurate
+- [ ] `docs/github_public_setup.md` exists and provides public setup guidance
 - [ ] All example configs in `configs/examples/` are runnable
 - [ ] All preset configs in `configs/presets/` are valid
 
@@ -46,10 +49,11 @@ Use this checklist before switching the repository from private to public.
 - [ ] `examples/images/sample.jpg` exists, is synthetic, and has no privacy or copyright issues
 - [ ] `examples/images/sample.jpg` is under 1 MB
 - [ ] Sample image is tracked in git
+- [ ] Sample image is not a real photograph with identifiable subjects
 
 ## Cleanliness
 
-- [ ] No `outputs/` directory committed
+- [ ] No `outputs/` directory committed (confirmed via `.gitignore`)
 - [ ] No `__pycache__` / `.pytest_cache` / `.ruff_cache` committed
 - [ ] No virtual environment directories committed
 - [ ] No large binary files committed (except `examples/images/sample.jpg`)
@@ -57,11 +61,25 @@ Use this checklist before switching the repository from private to public.
 - [ ] No secrets, tokens, API keys, or credentials in committed files
 - [ ] `.gitignore` covers common artifact directories
 
+## GitHub Metadata
+
+- [ ] Repository description is set (see `docs/github_public_setup.md` for suggestions)
+- [ ] Repository topics are set (see `docs/github_public_setup.md` for suggestions)
+- [ ] Default branch is `main`
+- [ ] No open draft PRs with sensitive content
+
 ## Tag and Release State
 
 - [ ] Current version tag points to the correct commit
-- [ ] `v0.3.0` tag is unchanged (known CI failure is documented history)
+- [ ] `v0.3.0` tag is unchanged (known CI failure is documented history; do not move this tag)
 - [ ] The latest version is the recommended starting point for new users
+
+## Sensitive Information
+
+- [ ] No `ghp_` tokens in committed files
+- [ ] No `BEGIN OPENSSH PRIVATE KEY` blocks in committed files
+- [ ] No `api_key=` assignments with real values in committed files
+- [ ] No hardcoded `/home/username` paths in documentation or source
 
 ## Current Publication Scope
 
@@ -69,6 +87,7 @@ Use this checklist before switching the repository from private to public.
 - Noctilux does not create GitHub Releases yet
 - Distribution is via `git clone` and `pip install -e .`
 - The repository is currently private; switching to public requires completing this checklist
+- Public visibility change must be performed manually by the repository owner
 
 ## Known Historical Notes
 

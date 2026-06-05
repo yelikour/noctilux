@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.4
+
+- Added `docs/github_public_setup.md` with suggested repository metadata and public transition steps.
+- Polished `README.md` for public-readiness with English description and structured Features section.
+- Updated `docs/public_readiness.md` with sensitive information checks, GitHub metadata items, and sample image verification.
+- Updated `docs/agent_handoff.md` with v0.3.4 release record and public setup reference.
+- Added public-readiness consistency tests to `tests/test_project_quality.py`.
+- Verified no sensitive information in committed files.
+
 ## 0.3.3
 
 - Aligned Python version classifiers with CI coverage (removed 3.13, kept 3.10–3.12).

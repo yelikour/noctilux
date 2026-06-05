@@ -97,3 +97,57 @@ def test_project_guide_roadmap_mentions_report() -> None:
     v030_section = text[text.find("v0.3.x") : text.find("v0.4.0")] if "v0.3.x" in text else ""
     assert v030_section, "PROJECT_GUIDE.md should have a v0.3.x section"
     assert "report" in v030_section.lower()
+
+
+def test_github_public_setup_doc_exists() -> None:
+    assert Path("docs/github_public_setup.md").exists()
+
+
+def test_readme_mentions_core_commands() -> None:
+    text = Path("README.md").read_text(encoding="utf-8")
+    assert "noctilux run" in text
+    assert "noctilux preview" in text
+    assert "noctilux report" in text
+
+
+def test_public_readiness_mentions_github_setup() -> None:
+    text = Path("docs/public_readiness.md").read_text(encoding="utf-8")
+    assert "github_public_setup.md" in text
+
+
+def test_agent_handoff_mentions_v030_tag_immutable() -> None:
+    text = Path("docs/agent_handoff.md").read_text(encoding="utf-8")
+    assert "v0.3.0" in text
+    assert "do not move" in text.lower() or "must not be moved" in text.lower() or "unchanged" in text.lower()
+
+
+def test_agent_handoff_mentions_public_requires_manual_confirmation() -> None:
+    text = Path("docs/agent_handoff.md").read_text(encoding="utf-8")
+    assert "manually" in text.lower() or "manual" in text.lower()
+
+
+def test_outputs_in_gitignore() -> None:
+    text = Path(".gitignore").read_text(encoding="utf-8")
+    assert "outputs" in text
+
+
+def test_sample_image_tracked_and_small() -> None:
+    import subprocess
+
+    sample = Path("examples/images/sample.jpg")
+    assert sample.exists()
+    assert sample.stat().st_size < 1_000_000
+    result = subprocess.run(["git", "ls-files", "--error-unmatch", str(sample)], capture_output=True, text=True)
+    assert result.returncode == 0, f"sample.jpg not tracked by git: {result.stderr}"
+
+
+def test_no_sensitive_patterns_in_docs() -> None:
+    dangerous_patterns = ["ghp_", "BEGIN OPENSSH PRIVATE KEY", "api_key="]
+    skip_files = {"docs/public_readiness.md"}
+    doc_files = list(Path("docs").glob("*.md")) + [Path("README.md"), Path("CHANGELOG.md"), Path("pyproject.toml")]
+    for path in doc_files:
+        if str(path) in skip_files:
+            continue
+        text = path.read_text(encoding="utf-8")
+        for pattern in dangerous_patterns:
+            assert pattern not in text, f"Found '{pattern}' in {path}"
