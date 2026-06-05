@@ -65,6 +65,7 @@ Metadata output structure from `noctilux run`:
 - `v0.3.3`: Python version classifier alignment, roadmap correction, public-readiness checklist, documentation consistency tests.
 - `v0.3.4`: public-readiness audit, README polish, GitHub public setup guide, sensitive information scan, public-readiness consistency tests.
 - `v0.3.5`: public repository polish — CONTRIBUTING.md, badge update, GitHub description/topics applied, visibility transition completed.
+- `v0.3.6`: community health files — issue templates, PR template, SECURITY.md, CODE_OF_CONDUCT.md, README support/roadmap sections.
 
 Important tag state:
 
@@ -134,7 +135,7 @@ noctilux report \
 
 ## Suggested Roadmap
 
-- `v0.3.5`: public repository polish.
+- `v0.3.6`: community health files.
 - `v0.4.0`: optional backend exploration, e.g. OpenCV backend.
 - `v0.5.0`: parallel execution and resume support.
 - `v0.6.0`: detection and segmentation annotation synchronization.

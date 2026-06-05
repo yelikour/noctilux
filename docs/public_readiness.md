@@ -84,8 +84,8 @@ Current status: The repository is now public (as of v0.3.5). This checklist was 
 ## Current Publication Scope
 
 - The repository is now public.
+- Community health files are in place: issue templates, PR template, SECURITY.md, CODE_OF_CONDUCT.md, CONTRIBUTING.md.
 - Noctilux does not publish to PyPI yet.
-- Noctilux does not create GitHub Releases yet.
 - Distribution is via `git clone` and `pip install -e .`.
 
 ## Known Historical Notes

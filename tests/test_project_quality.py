@@ -165,3 +165,21 @@ def test_readme_mentions_contributing() -> None:
 def test_readme_no_private_note() -> None:
     text = Path("README.md").read_text(encoding="utf-8")
     assert "currently private" not in text.lower()
+
+
+def test_issue_templates_exist() -> None:
+    assert Path(".github/ISSUE_TEMPLATE/bug_report.md").exists()
+    assert Path(".github/ISSUE_TEMPLATE/feature_request.md").exists()
+
+
+def test_pull_request_template_exists() -> None:
+    assert Path(".github/pull_request_template.md").exists()
+
+
+def test_security_md_exists() -> None:
+    assert Path("SECURITY.md").exists()
+
+
+def test_readme_mentions_roadmap() -> None:
+    text = Path("README.md").read_text(encoding="utf-8")
+    assert "PROJECT_GUIDE.md" in text or "roadmap" in text.lower()

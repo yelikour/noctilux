@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.6
+
+- Added GitHub issue templates (bug report, feature request).
+- Added pull request template.
+- Added `SECURITY.md` with vulnerability reporting policy.
+- Added `CODE_OF_CONDUCT.md` (Contributor Covenant v2.1).
+- Updated `README.md` with contributing, support status, and roadmap sections.
+- Updated `docs/agent_handoff.md` and `docs/public_readiness.md`.
+
 ## 0.3.5
 
 - Added `CONTRIBUTING.md` with setup, guidelines, and contributing workflow.
