@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+- Added `docs/parallel_resume_design.md` with parallel execution and resume architecture design.
+- Documented metadata-safe writer, task/result data structures, seed determinism, and resume semantics.
+- Updated `PROJECT_GUIDE.md` roadmap with phased v0.5.x plan (design, metadata writer, serial resume, parallel prototype).
+- No code changes. Serial execution unchanged.
+
 ## 0.4.2
 
 - Updated GitHub Actions workflow dependencies to `actions/checkout@v6` and `actions/setup-python@v6`.

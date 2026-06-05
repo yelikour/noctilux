@@ -270,3 +270,37 @@ def test_opencv_missing_backend_error_message() -> None:
         if cv2_mod is not None:
             sys.modules["cv2"] = cv2_mod
 
+
+def test_parallel_resume_design_doc_exists() -> None:
+    assert Path("docs/parallel_resume_design.md").exists()
+
+
+def test_parallel_resume_design_mentions_metadata_safe_writer() -> None:
+    text = Path("docs/parallel_resume_design.md").read_text(encoding="utf-8")
+    assert "metadata-safe" in text.lower() or "MetadataWriter" in text
+
+
+def test_parallel_resume_design_mentions_deterministic_seed() -> None:
+    text = Path("docs/parallel_resume_design.md").read_text(encoding="utf-8")
+    assert "deterministic" in text.lower() or "combine_seed" in text
+
+
+def test_parallel_resume_design_mentions_resume_flags() -> None:
+    text = Path("docs/parallel_resume_design.md").read_text(encoding="utf-8")
+    assert "--resume" in text
+    assert "--skip-existing" in text
+    assert "--retry-failed" in text
+
+
+def test_project_guide_mentions_v05x_parallel_resume() -> None:
+    text = Path("PROJECT_GUIDE.md").read_text(encoding="utf-8")
+    v050_section = text[text.find("v0.5.0") : text.find("v0.6.0")] if "v0.5.0" in text else ""
+    assert v050_section, "PROJECT_GUIDE.md should have a v0.5.0 section"
+    assert "resume" in v050_section.lower() or "parallel" in v050_section.lower()
+
+
+def test_readme_mentions_parallel_resume_roadmap() -> None:
+    text = Path("README.md").read_text(encoding="utf-8")
+    assert "parallel" in text.lower()
+    assert "resume" in text.lower()
+

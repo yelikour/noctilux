@@ -1890,10 +1890,21 @@ YAML 调用：
 
 目标：并行处理与恢复。
 
-计划：
+设计文档：`docs/parallel_resume_design.md`
 
-* 多进程并行执行
-* 中断恢复（resume）
+分阶段计划：
+
+* v0.5.0：parallel/resume 设计文档
+* v0.5.1：metadata-safe writer 重构（流式写入，替代内存收集）
+* v0.5.2：serial resume（`--resume`、`--skip-existing`、`--retry-failed`）
+* v0.5.3：process pool prototype（`ProcessPoolExecutor`，worker 返回 result，main process 写 metadata）
+
+原则：
+
+* `num_workers=1` 仍为默认值
+* 并行不改变 seed 确定性
+* metadata 写入始终单进程
+* resume 基于 manifest.csv 和 transform_log.jsonl 判断已完成任务
 
 ---
 
