@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.2
+
+- Added serial resume support (`--resume`): skip already-completed outputs from existing metadata.
+- Added skip-existing support (`--skip-existing`): skip outputs whose target file already exists on disk.
+- Added retry-failed mode (`--retry-failed`): re-process only previously failed outputs.
+- Added `src/noctilux/resume.py` module with resume utility functions.
+- Added resume tests and documentation.
+- `--resume` and `--retry-failed` are mutually exclusive.
+- Run summary now includes `skipped_count`, `resume_enabled`, `skip_existing_enabled`, `retry_failed_enabled`.
+- Metadata schema unchanged. Execution remains serial.
+
 ## 0.5.1
 
 - Refactored metadata writing into `MetadataWriter` with streaming writes.

@@ -3,7 +3,7 @@
 [![CI](https://github.com/yelikour/noctilux/actions/workflows/ci.yml/badge.svg)](https://github.com/yelikour/noctilux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.5.1-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.5.2-orange.svg)](CHANGELOG.md)
 
 **Noctilux** is a general-purpose offline image batch processing and augmentation toolkit. It uses YAML configs to define reproducible, traceable image processing pipelines for pre-training data preparation.
 
@@ -21,7 +21,7 @@ Noctilux 是一个通用的离线图像批处理与增强工具。它面向训�
 
 ## Current Status
 
-- Version: `0.5.1`
+- Version: `0.5.2`
 - Execution: serial (parallel planned for v0.5.x)
 - Default backend: Pillow + NumPy
 - Optional backend: OpenCV via `noctilux[opencv]` (CI-tested on Python 3.12)
@@ -325,6 +325,23 @@ Officially tested Python versions: 3.10, 3.11, 3.12. Python 3.13 may work locall
 ## 新增 transform
 
 新增 transform 的完整示例见 [docs/adding_new_transform.md](docs/adding_new_transform.md)。
+
+## Resume and Skip
+
+Noctilux supports serial resume and skip-existing modes:
+
+```bash
+# Skip already-completed outputs from existing metadata
+noctilux run --config config.yaml --resume
+
+# Skip outputs whose target file already exists
+noctilux run --config config.yaml --skip-existing
+
+# Re-process only previously failed outputs
+noctilux run --config config.yaml --retry-failed
+```
+
+`--resume` and `--retry-failed` are mutually exclusive. `--skip-existing` can be combined with `--resume`. Execution remains serial.
 
 ## Contributing
 

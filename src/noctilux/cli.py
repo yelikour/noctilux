@@ -15,6 +15,13 @@ from noctilux.pipeline import PipelineExecutionError, build_pipelines
 from noctilux.preview import add_preview_arguments, create_preview_grid
 from noctilux.registry import list_transforms
 from noctilux.report import generate_report
+from noctilux.resume import (
+    build_processing_key,
+    check_output_exists,
+    load_failed_keys,
+    load_success_keys,
+    validate_resume_args,
+)
 from noctilux.saver import OutputSaver
 from noctilux.scanner import build_manifest_from_folder, scan_inputs
 
@@ -51,6 +58,18 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser = subparsers.add_parser("run", help="Run an offline processing job.")
     run_parser.add_argument("--config", required=True, help="Path to YAML config.")
     run_parser.add_argument("--dry-run", action="store_true", help="Override config and run without writing outputs.")
+    run_parser.add_argument(
+        "--resume", action="store_true",
+        help="Skip already-completed outputs from existing metadata.",
+    )
+    run_parser.add_argument(
+        "--skip-existing", action="store_true",
+        help="Skip outputs whose target file already exists on disk.",
+    )
+    run_parser.add_argument(
+        "--retry-failed", action="store_true",
+        help="Re-process only previously failed outputs.",
+    )
     run_parser.set_defaults(func=run_command)
 
     preview_parser = subparsers.add_parser("preview", help="Generate a preview grid for a single image.")
@@ -129,6 +148,11 @@ def report_command(args: argparse.Namespace) -> int:
 
 
 def run_command(args: argparse.Namespace) -> int:
+    do_resume = getattr(args, "resume", False)
+    do_skip_existing = getattr(args, "skip_existing", False)
+    do_retry_failed = getattr(args, "retry_failed", False)
+    validate_resume_args(do_resume, do_retry_failed)
+
     config = _load_and_validate(args.config)
     if getattr(args, "dry_run", False):
         config["runtime"]["dry_run"] = True
@@ -163,7 +187,17 @@ def run_command(args: argparse.Namespace) -> int:
 
     saver = OutputSaver(config["output"])
     saver.prepare_directories()
+
+    skip_keys: set[str] = set()
+    if do_resume:
+        skip_keys = load_success_keys(saver.metadata_root)
+        LOGGER.info("Resume mode: %d completed outputs will be skipped.", len(skip_keys))
+    elif do_retry_failed:
+        skip_keys = load_failed_keys(saver.metadata_root)
+        LOGGER.info("Retry-failed mode: %d failed outputs will be retried.", len(skip_keys))
+
     writer = MetadataWriter(saver.metadata_root)
+    skipped_count = 0
 
     iterable = samples
     if config["runtime"].get("show_progress", True):
@@ -174,13 +208,28 @@ def run_command(args: argparse.Namespace) -> int:
         try:
             image, input_info = load_image(sample_path)
         except Exception as exc:
-            _handle_load_failure(writer, sample, pipelines, str(exc))
+            _handle_load_failure(writer, sample, pipelines, str(exc), skip_keys, do_retry_failed)
             if config["runtime"]["fail_fast"]:
                 raise
             continue
 
         for pipeline in pipelines:
             for repeat_index in range(pipeline.repeat):
+                key = build_processing_key(sample["sample_id"], pipeline.name, repeat_index)
+
+                if do_resume and key in skip_keys:
+                    skipped_count += 1
+                    continue
+
+                if do_retry_failed and key not in skip_keys:
+                    skipped_count += 1
+                    continue
+
+                if do_skip_existing and not do_retry_failed:
+                    if check_output_exists(sample, pipeline.name, repeat_index, saver):
+                        skipped_count += 1
+                        continue
+
                 run_seed = pipeline._resolve_run_seed(sample=sample, repeat_index=repeat_index)
                 try:
                     output_image, transform_log, run_seed = pipeline.apply(
@@ -266,6 +315,10 @@ def run_command(args: argparse.Namespace) -> int:
     print(f"total_outputs: {writer.total_count}")
     print(f"success_count: {writer.success_count}")
     print(f"failed_count: {writer.failed_count}")
+    print(f"skipped_count: {skipped_count}")
+    print(f"resume_enabled: {do_resume}")
+    print(f"skip_existing_enabled: {do_skip_existing}")
+    print(f"retry_failed_enabled: {do_retry_failed}")
     print(f"metadata_path: {saver.metadata_root}")
     LOGGER.info("Completed run. metadata=%s", saver.metadata_root)
     return 0
@@ -357,9 +410,17 @@ def _handle_load_failure(
     sample: dict[str, Any],
     pipelines: list[Any],
     error: str,
+    skip_keys: set[str],
+    retry_only: bool,
 ) -> None:
     for pipeline in pipelines:
         for repeat_index in range(pipeline.repeat):
+            if retry_only:
+                from noctilux.resume import build_processing_key
+
+                key = build_processing_key(sample["sample_id"], pipeline.name, repeat_index)
+                if key not in skip_keys:
+                    continue
             run_seed = pipeline._resolve_run_seed(sample=sample, repeat_index=repeat_index)
             _record_failure(
                 writer=writer,

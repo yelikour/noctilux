@@ -291,12 +291,17 @@ These are CLI-only overrides. YAML `runtime.num_workers` remains supported as th
 - Serial execution unchanged. All existing tests pass.
 - Parallel and resume not yet implemented.
 
-### v0.5.2 — Serial Resume
+### v0.5.2 — Serial Resume (completed)
 
-- Implement `--resume`, `--skip-existing`, `--retry-failed` in serial mode.
-- Read existing metadata to determine completed tasks.
-- Append to existing metadata files.
-- Add resume-related tests.
+- Implemented `--resume`, `--skip-existing`, `--retry-failed` in serial mode.
+- `--resume` reads `manifest.csv` success records and skips completed outputs.
+- `--skip-existing` checks if output file already exists on disk.
+- `--retry-failed` reads `failed_images.csv` and only re-processes those keys.
+- `--resume` and `--retry-failed` are mutually exclusive.
+- Added `src/noctilux/resume.py` with `load_success_keys`, `load_failed_keys`, `build_processing_key`.
+- Run summary includes `skipped_count` and flag status.
+- Skipped items are not written to metadata.
+- Metadata schema unchanged. Execution still serial. Parallel not yet implemented.
 
 ### v0.5.3 — Process Pool Prototype
 
