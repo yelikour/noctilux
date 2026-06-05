@@ -196,6 +196,51 @@ def test_run_records_load_image_failure_stage(tmp_path: Path, capsys: pytest.Cap
     capsys.readouterr()
 
 
+def test_serial_load_failure_respects_skip_broken_false(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config = _base_config(tmp_path)
+    config["runtime"]["skip_broken_images"] = False
+    broken_path = tmp_path / "images" / "class_a" / "broken.jpg"
+    broken_path.parent.mkdir(parents=True, exist_ok=True)
+    broken_path.write_text("not-an-image", encoding="utf-8")
+    config_path = _write_config(tmp_path, config)
+
+    exit_code = main(["run", "--config", str(config_path)])
+
+    assert exit_code == 1
+    failed = pd.read_csv(tmp_path / "output" / "metadata" / "failed_images.csv")
+    assert len(failed) == 1
+    assert failed.loc[0, "stage"] == "load_image"
+    capsys.readouterr()
+
+
+def test_serial_load_failure_skip_broken_true_records_and_continues(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config = _base_config(tmp_path)
+    broken_path = tmp_path / "images" / "class_a" / "broken.jpg"
+    broken_path.parent.mkdir(parents=True, exist_ok=True)
+    broken_path.write_text("not-an-image", encoding="utf-8")
+    _make_image(tmp_path / "images" / "class_a" / "sample.jpg")
+    config_path = _write_config(tmp_path, config)
+
+    exit_code = main(["run", "--config", str(config_path)])
+
+    assert exit_code == 0
+    failed = pd.read_csv(tmp_path / "output" / "metadata" / "failed_images.csv")
+    manifest = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    lines = (tmp_path / "output" / "metadata" / "transform_log.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(failed) == 1
+    assert failed.loc[0, "stage"] == "load_image"
+    assert manifest["success"].tolist().count(True) == 1
+    for line in lines:
+        json.loads(line)
+    capsys.readouterr()
+
+
 def test_num_workers_gt_one_uses_parallel_execution(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

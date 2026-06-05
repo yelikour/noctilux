@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import pytest
 from PIL import Image
 
 from noctilux.scanner import scan_folder, scan_manifest
@@ -18,6 +19,7 @@ def test_folder_mode_scans_images(tmp_path: Path) -> None:
     samples = scan_folder(tmp_path, recursive=True, infer_label_from_subdir=True)
 
     assert len(samples) == 2
+    assert len({sample["sample_id"] for sample in samples}) == 2
     assert all(sample["label"] == "cat" for sample in samples)
 
 
@@ -40,6 +42,24 @@ def test_manifest_mode_reads_image_list(tmp_path: Path) -> None:
     assert len(samples) == 2
     assert samples[0]["split"] == "train"
     assert samples[1]["label"] == "y"
+
+
+def test_manifest_mode_rejects_duplicate_sample_id(tmp_path: Path) -> None:
+    image_root = tmp_path / "images"
+    image_root.mkdir()
+    Image.new("RGB", (32, 16), color="green").save(image_root / "a.jpg")
+    Image.new("RGB", (16, 16), color="yellow").save(image_root / "b.png")
+    frame = pd.DataFrame(
+        [
+            {"sample_id": "dup", "image_path": "a.jpg"},
+            {"sample_id": "dup", "image_path": "b.png"},
+        ]
+    )
+    manifest_path = tmp_path / "manifest_dup.csv"
+    frame.to_csv(manifest_path, index=False)
+
+    with pytest.raises(ValueError, match="duplicate sample_id|sample_id must be unique"):
+        scan_manifest(manifest_path, image_root=image_root)
 
 
 def test_scanner_skips_non_image_files(tmp_path: Path) -> None:

@@ -144,14 +144,15 @@ def pre_allocate_output_paths(
     pipelines: list[Any],
     output_config: dict[str, Any],
     include_keys: set[tuple[str, str, int]] | None = None,
+    avoid_existing: bool = True,
 ) -> dict[tuple[str, str, int], Path]:
     """Pre-compute globally unique output paths for processing tasks.
 
-    Existing files are avoided when output.overwrite is false. Paths are also
-    reserved in memory so multiple tasks in the same run cannot target the same
-    file. When output.overwrite is true, existing files may be overwritten, but
-    task-to-task collisions within the current run still receive deterministic
-    __dupN suffixes.
+    Existing files are avoided when output.overwrite is false and
+    avoid_existing is true. Paths are also reserved in memory so multiple tasks
+    in the same run cannot target the same file. When output.overwrite is true,
+    existing files may be overwritten, but task-to-task collisions within the
+    current run still receive deterministic __dupN suffixes.
     """
     from noctilux.saver import OutputSaver
 
@@ -166,7 +167,12 @@ def pre_allocate_output_paths(
                 if include_keys is not None and key not in include_keys:
                     continue
                 target = _build_base_output_path(sample, pipeline.name, repeat_index, saver)
-                paths[key] = _reserve_output_path(target, saver, reserved_paths)
+                paths[key] = _reserve_output_path(
+                    target,
+                    saver,
+                    reserved_paths,
+                    avoid_existing=avoid_existing,
+                )
 
     return paths
 
@@ -181,14 +187,20 @@ def _build_base_output_path(sample: dict[str, Any], pipeline_name: str, repeat_i
     return saver.images_root / pipeline_name / relative_dir / filename
 
 
-def _reserve_output_path(target: Path, saver: Any, reserved_paths: set[Path]) -> Path:
+def _reserve_output_path(
+    target: Path,
+    saver: Any,
+    reserved_paths: set[Path],
+    *,
+    avoid_existing: bool = True,
+) -> Path:
     overwrite = bool(saver.output_config.get("overwrite", False))
     counter = 0
 
     while True:
         candidate = target if counter == 0 else target.with_name(f"{target.stem}__dup{counter}{target.suffix}")
         candidate = saver._ensure_safe_path(candidate)
-        disk_conflict = candidate.exists() and not overwrite
+        disk_conflict = avoid_existing and candidate.exists() and not overwrite
         run_conflict = candidate in reserved_paths
         if not disk_conflict and not run_conflict:
             reserved_paths.add(candidate)

@@ -17,7 +17,6 @@ from noctilux.registry import list_transforms
 from noctilux.report import generate_report
 from noctilux.resume import (
     build_processing_key,
-    check_output_exists,
     load_failed_keys,
     load_success_keys,
     validate_resume_args,
@@ -235,6 +234,26 @@ def _run_serial(
         skip_keys = load_failed_keys(saver.metadata_root)
         LOGGER.info("Retry-failed mode: %d failed outputs will be retried.", len(skip_keys))
 
+    serial_output_paths: dict[tuple[str, str, int], Path] = {}
+    if do_skip_existing and not do_retry_failed:
+        from noctilux.worker import pre_allocate_output_paths
+
+        skip_existing_keys: set[tuple[str, str, int]] = set()
+        for sample in samples:
+            for pipeline in pipelines:
+                for repeat_index in range(pipeline.repeat):
+                    key = build_processing_key(sample["sample_id"], pipeline.name, repeat_index)
+                    if do_resume and key in skip_keys:
+                        continue
+                    skip_existing_keys.add((sample["sample_id"], pipeline.name, repeat_index))
+        serial_output_paths = pre_allocate_output_paths(
+            samples,
+            pipelines,
+            config["output"],
+            include_keys=skip_existing_keys,
+            avoid_existing=False,
+        )
+
     writer = MetadataWriter(saver.metadata_root, append=do_resume)
     skipped_count = 0
 
@@ -248,7 +267,8 @@ def _run_serial(
             image, input_info = load_image(sample_path)
         except Exception as exc:
             _handle_load_failure(writer, sample, pipelines, str(exc), skip_keys, do_retry_failed)
-            if config["runtime"]["fail_fast"]:
+            if config["runtime"]["fail_fast"] or not config["runtime"]["skip_broken_images"]:
+                writer.close()
                 raise
             continue
 
@@ -264,8 +284,10 @@ def _run_serial(
                     skipped_count += 1
                     continue
 
+                output_path: Path | None = None
                 if do_skip_existing and not do_retry_failed:
-                    if check_output_exists(sample, pipeline.name, repeat_index, saver):
+                    output_path = serial_output_paths[(sample["sample_id"], pipeline.name, repeat_index)]
+                    if output_path.exists():
                         skipped_count += 1
                         continue
 
@@ -299,7 +321,8 @@ def _run_serial(
                     continue
 
                 try:
-                    output_path = saver.build_output_path(sample, pipeline.name, repeat_index)
+                    if output_path is None:
+                        output_path = saver.build_output_path(sample, pipeline.name, repeat_index)
                     saver.save(output_image, output_path)
                     output_info = describe_image(
                         output_image,
@@ -395,8 +418,8 @@ def _run_parallel(
             "transforms": pipeline.transforms,
         }
 
-    pending_tasks: list[tuple[dict[str, Any], Any, int]] = []
-    pending_keys: set[tuple[str, str, int]] = set()
+    candidate_tasks: list[tuple[dict[str, Any], Any, int]] = []
+    candidate_keys: set[tuple[str, str, int]] = set()
     skipped_count = 0
 
     for sample in samples:
@@ -412,20 +435,24 @@ def _run_parallel(
                     skipped_count += 1
                     continue
 
-                if do_skip_existing and not do_retry_failed:
-                    if check_output_exists(sample, pipeline.name, repeat_index, saver):
-                        skipped_count += 1
-                        continue
-
-                pending_tasks.append((sample, pipeline, repeat_index))
-                pending_keys.add((sample["sample_id"], pipeline.name, repeat_index))
+                candidate_tasks.append((sample, pipeline, repeat_index))
+                candidate_keys.add((sample["sample_id"], pipeline.name, repeat_index))
 
     output_paths = pre_allocate_output_paths(
         samples,
         pipelines,
         config["output"],
-        include_keys=pending_keys,
+        include_keys=candidate_keys,
+        avoid_existing=not (do_skip_existing and not do_retry_failed),
     )
+
+    pending_tasks: list[tuple[dict[str, Any], Any, int]] = []
+    for sample, pipeline, repeat_index in candidate_tasks:
+        output_path = output_paths[(sample["sample_id"], pipeline.name, repeat_index)]
+        if do_skip_existing and not do_retry_failed and output_path.exists():
+            skipped_count += 1
+            continue
+        pending_tasks.append((sample, pipeline, repeat_index))
 
     tasks: list[ProcessingTask] = []
     for sample, pipeline, repeat_index in pending_tasks:

@@ -916,6 +916,59 @@ def test_parallel_skip_existing(tmp_path: Path) -> None:
     assert "skipped_count: 3" in result2.stdout
 
 
+@pytest.mark.parametrize("num_workers", ["1", "2"])
+def test_skip_existing_same_stem_collision_uses_final_reserved_path(
+    tmp_path: Path,
+    num_workers: str,
+) -> None:
+    from PIL import Image
+
+    config_path = _create_collision_config(
+        tmp_path,
+        ["a/same.jpg"],
+        overwrite=False,
+        preserve_subdirs=False,
+    )
+
+    result1 = _run_cli(config_path, ["--num-workers", num_workers])
+    assert result1.returncode == 0
+
+    new_path = tmp_path / "images" / "b" / "same.jpg"
+    new_path.parent.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (64, 64), color=(10, 80, 120)).save(new_path)
+
+    result2 = _run_cli(config_path, ["--num-workers", num_workers, "--skip-existing"])
+
+    assert result2.returncode == 0
+    assert "success_count: 1" in result2.stdout
+    assert "skipped_count: 1" in result2.stdout
+    manifest = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    assert len(manifest) == 1
+    output_path = Path(manifest.iloc[0]["output_path"])
+    assert output_path.exists()
+    assert "__dup1" in output_path.stem
+
+
+def test_skip_existing_skips_when_final_reserved_path_exists(tmp_path: Path) -> None:
+    config_path = _create_collision_config(
+        tmp_path,
+        ["a/same.jpg", "b/same.jpg"],
+        overwrite=False,
+        preserve_subdirs=False,
+    )
+
+    result1 = _run_cli(config_path, ["--num-workers", "2"])
+    assert result1.returncode == 0
+
+    result2 = _run_cli(config_path, ["--num-workers", "2", "--skip-existing"])
+
+    assert result2.returncode == 0
+    assert "success_count: 0" in result2.stdout
+    assert "skipped_count: 2" in result2.stdout
+    manifest = pd.read_csv(tmp_path / "output" / "metadata" / "manifest.csv")
+    assert len(manifest) == 0
+
+
 def test_parallel_retry_failed_only_processes_failed(tmp_path: Path) -> None:
     """--retry-failed --num-workers 2 only re-processes entries in failed_images.csv."""
     from PIL import Image

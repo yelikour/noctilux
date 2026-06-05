@@ -4,13 +4,15 @@ This document describes the planned parallel execution and resume architecture f
 
 ## Current State
 
-Noctilux v0.5.5 defaults to serial execution and exposes experimental process-pool parallel execution only when `num_workers > 1`:
+Noctilux v0.5.6 defaults to serial execution and exposes experimental process-pool parallel execution only when `num_workers > 1`:
 
 - `num_workers=1` runs the original serial path in `cli.py`.
 - `num_workers > 1` uses `ProcessPoolExecutor` with worker processes that return `ProcessingResult` objects.
 - Metadata is written only by the main process through `MetadataWriter`.
 - `--resume` preserves existing metadata, appends newly processed results, and regenerates `summary.csv` from the full manifest.
 - Parallel output paths are pre-allocated by the main process and are globally unique within the run.
+- `--skip-existing` is evaluated against the final reserved output path, including deterministic same-stem collision suffixes.
+- Manifest `sample_id` values must be unique before processing starts.
 - `output.overwrite: false` avoids existing files; `output.overwrite: true` may overwrite existing files but still prevents task-to-task collisions in the same run.
 - Parallel mode remains experimental in v0.5.x; stable parallel execution is still planned for v0.6.0.
 
@@ -377,6 +379,13 @@ These are CLI-only overrides. YAML `runtime.num_workers` remains supported as th
 - [ ] Timeout handling for hung workers — deferred to v0.6.0
 - [ ] Cross-platform (macOS spawn, Windows spawn) validation — deferred to v0.6.0
 - [ ] Performance benchmarks — deferred to v0.6.0
+
+### v0.5.6 — Parallel Edge-Case Fixes (completed)
+
+- Manifest mode now rejects duplicate `sample_id` values before processing, preventing ambiguous `(sample_id, pipeline_name, repeat_index)` resume/retry keys.
+- `--skip-existing` now checks the final reserved output path instead of the unsuffixed base path, so same-stem collisions with `preserve_subdirs: false` can still write deterministic `__dupN` outputs when those final paths are free.
+- Serial load-image failures now honor `skip_broken_images=False` and fail the run after recording `stage=load_image`.
+- Folder-mode generated `sample_id` values, metadata schema fields, deterministic output suffixes, and serial default execution remain unchanged.
 
 ### v0.6.0 — Stable Parallel Execution
 

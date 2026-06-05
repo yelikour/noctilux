@@ -69,6 +69,7 @@ def scan_folder(
                 },
             }
         )
+    _validate_unique_sample_ids(samples)
     return samples
 
 
@@ -123,6 +124,7 @@ def scan_manifest(
                 "metadata": metadata,
             }
         )
+    _validate_unique_sample_ids(samples)
     return samples
 
 
@@ -152,6 +154,20 @@ def build_manifest_from_folder(
             }
         )
     return pd.DataFrame(rows)
+
+
+def _validate_unique_sample_ids(samples: list[dict[str, Any]]) -> None:
+    seen: set[str] = set()
+    duplicates: set[str] = set()
+    for sample in samples:
+        sample_id = str(sample.get("sample_id", ""))
+        if sample_id in seen:
+            duplicates.add(sample_id)
+        seen.add(sample_id)
+
+    if duplicates:
+        duplicate_list = ", ".join(sorted(duplicates))
+        raise ValueError(f"duplicate sample_id values found; sample_id must be unique: {duplicate_list}")
 
 
 def _make_sample_id(relative_path: Path, index: int | None = None) -> str:

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.6
+
+- Rejected duplicate manifest `sample_id` values before processing to avoid resume/retry key ambiguity.
+- Fixed `--skip-existing` same-stem collision handling so skips are based on final reserved output paths.
+- Aligned serial load-image failures with `skip_broken_images=False` so bad inputs fail the run after metadata is recorded.
+- Kept metadata schema unchanged and default execution serial.
+
 ## 0.5.5
 
 - Fixed parallel overwrite behavior so `output.overwrite: false` avoids existing files and `overwrite: true` is explicit.
