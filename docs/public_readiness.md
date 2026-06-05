@@ -88,6 +88,7 @@ Current status: The repository is now public (as of v0.3.5). This checklist was 
 - Noctilux does not publish to PyPI yet.
 - Distribution is via `git clone` and `pip install -e .`.
 - OpenCV backend is available as an optional dependency (`noctilux[opencv]`). The default quickstart does not require OpenCV.
+- Annotation synchronization for detection/segmentation/keypoint tasks is designed (`docs/annotation_sync_design.md`) but not yet implemented. Current functionality remains image-only augmentation.
 
 ## Known Historical Notes
 

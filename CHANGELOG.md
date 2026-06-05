@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0
+
+- Added annotation synchronization design document (`docs/annotation_sync_design.md`).
+- Documented future detection, segmentation, and keypoint annotation roadmap.
+- Defined phased implementation plan: v0.7.x design/prototype, v0.8.x COCO/YOLO support.
+- No code changes. Image-only behavior unchanged.
+
 ## 0.6.0
 
 - Hardened experimental parallel execution without changing the serial default.

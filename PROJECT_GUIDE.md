@@ -1908,28 +1908,54 @@ YAML 调用：
 
 ---
 
-### v0.6.0（计划中）
+### v0.6.0（已完成）
 
-目标：任务感知。
+目标：并行处理加固。
 
-计划：
-
-* detection annotation 同步（COCO / VOC）
-* segmentation mask 同步
-* class-balanced generation
+已完成：
+* bounded in-flight task submission
+* worker future exception handling
+* spawn-mode smoke coverage
+* save-image failure alignment with skip_broken_images
+* parallel remains experimental / hardening-stage, not stable
 
 ---
 
-### v0.7.0+（远期）
+### v0.7.x（进行中）
 
-目标：真实场景后处理模拟与高级扩展。
+目标：annotation 同步设计。
 
-可能新增：
+设计文档：`docs/annotation_sync_design.md`
 
-* social media / screenshot / document export 等 platform-like transform
-* frequency transforms
-* occlusion transforms
-* detection / segmentation annotation 完整支持
+分阶段计划：
+
+* v0.7.0：annotation sync 设计文档（无代码改动）
+* v0.7.1：annotation schema / parser prototype（AnnotationRecord, BoundingBox, COCO parser）
+* v0.7.2：bbox sync for resize / flip
+* v0.7.3：crop bbox handling（clipping, elimination, min visibility）
+
+原则：
+
+* 默认不启用 annotation sync
+* image-only pipeline 行为不能改变
+* 只有 geometry transform 需要同步 annotation
+* photometric transform 不改变 annotation
+* 输出 annotation 必须可追溯
+* metadata schema 不能破坏现有字段
+
+---
+
+### v0.8.0（计划中）
+
+目标：COCO / YOLO minimal support。
+
+计划：
+
+* COCO JSON full read/write
+* YOLO TXT read/write（normalized coordinates）
+* VOC XML read-only
+* CLI integration for annotation-aware configs
+* documentation and examples
 
 ---
 

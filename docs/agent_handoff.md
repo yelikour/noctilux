@@ -78,6 +78,7 @@ Metadata output structure from `noctilux run`:
 - `v0.5.5`: parallel audit fixes — safe overwrite handling, globally unique parallel output paths, resume metadata preservation, parallel `skip_broken_images=False` alignment, MetadataWriter close on parallel exceptions, and CLI `num_workers` validation.
 - `v0.5.6`: parallel edge-case fixes — duplicate manifest `sample_id` rejection, final-path `--skip-existing` collision handling, and serial load-image `skip_broken_images=False` alignment.
 - `v0.6.0`: experimental parallel hardening — clearer future exception handling, bounded in-flight submission, spawn smoke coverage, and save-image failure alignment. Parallel remains hardening-stage, not stable.
+- `v0.7.0`: annotation synchronization design only — `docs/annotation_sync_design.md`. No code changes. Image-only behavior unchanged. Future annotation implementation must not break existing metadata schema.
 
 Important tag state:
 
@@ -152,7 +153,8 @@ noctilux report \
 - `v0.4.x`: broader backend coverage.
 - `v0.5.0`: parallel execution and resume support.
 - `v0.6.0`: parallel hardening completed; parallel still not declared stable.
-- `v0.7.0`: detection and segmentation annotation synchronization.
+- `v0.7.x`: annotation synchronization design and prototypes. v0.7.0 is design-only; no annotation code implemented yet.
+- `v0.8.0`: detection and segmentation annotation synchronization.
 - Adjust the roadmap when the user gives a more specific task.
 
 ## New Agent Onboarding Flow

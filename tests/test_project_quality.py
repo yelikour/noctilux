@@ -304,3 +304,43 @@ def test_readme_mentions_parallel_resume_roadmap() -> None:
     assert "parallel" in text.lower()
     assert "resume" in text.lower()
 
+
+# --- v0.7.0 annotation sync design tests ---
+
+
+def test_annotation_sync_design_doc_exists() -> None:
+    assert Path("docs/annotation_sync_design.md").exists()
+
+
+def test_readme_mentions_annotation_sync_roadmap_but_not_supported() -> None:
+    text = Path("README.md").read_text(encoding="utf-8")
+    assert "annotation" in text.lower()
+    assert "not yet supported" in text.lower() or "not yet" in text.lower()
+
+
+def test_project_guide_mentions_v07x_annotation_sync() -> None:
+    text = Path("PROJECT_GUIDE.md").read_text(encoding="utf-8")
+    v07_section = text[text.find("v0.7") : text.find("v0.8.0")] if "v0.7" in text else ""
+    assert v07_section, "PROJECT_GUIDE.md should have a v0.7.x section"
+    assert "annotation" in v07_section.lower()
+
+
+def test_agent_handoff_mentions_annotation_sync_design_only() -> None:
+    text = Path("docs/agent_handoff.md").read_text(encoding="utf-8")
+    assert "annotation" in text.lower()
+    assert "design" in text.lower()
+
+
+def test_annotation_sync_design_mentions_formats_and_types() -> None:
+    text = Path("docs/annotation_sync_design.md").read_text(encoding="utf-8")
+    assert "COCO" in text
+    assert "YOLO" in text
+    assert "bbox" in text.lower() or "bounding box" in text.lower()
+    assert "mask" in text.lower()
+    assert "keypoint" in text.lower()
+
+
+def test_annotation_sync_design_confirms_image_only_unchanged() -> None:
+    text = Path("docs/annotation_sync_design.md").read_text(encoding="utf-8")
+    assert "image-only" in text.lower() or "unchanged" in text.lower()
+
