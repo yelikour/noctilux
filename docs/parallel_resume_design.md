@@ -303,13 +303,19 @@ These are CLI-only overrides. YAML `runtime.num_workers` remains supported as th
 - Skipped items are not written to metadata.
 - Metadata schema unchanged. Execution still serial. Parallel not yet implemented.
 
-### v0.5.3 — Process Pool Prototype
+### v0.5.3 — Process Pool Prototype (completed)
 
-- Implement `ProcessPoolExecutor`-based parallel execution.
-- Pre-allocate output paths.
-- Workers return `TaskResult`, main process writes metadata.
-- `num_workers=1` remains the safe default.
-- Add parallel-specific tests.
+- Implemented `ProcessPoolExecutor`-based parallel execution.
+- Added `src/noctilux/worker.py` with `ProcessingTask`/`ProcessingResult` dataclasses.
+- Worker function `process_task` handles load → transform → save → return result.
+- Main process pre-allocates output paths via `pre_allocate_output_paths`.
+- Main process dispatches tasks, collects results, writes metadata (single writer).
+- Added `--num-workers N` CLI argument (overrides `runtime.num_workers` config).
+- Resume/skip-existing/retry-failed filtering happens before task dispatch.
+- Seed determinism preserved: `combine_seed` is order-independent.
+- `num_workers=1` remains the safe default (serial execution path).
+- Added `tests/test_parallel.py` with 14 tests.
+- Serial execution unchanged when `num_workers=1`.
 
 ### v0.6.0 — Stable Parallel Execution
 

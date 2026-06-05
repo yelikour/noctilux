@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.3
+
+- Added experimental `ProcessPoolExecutor`-based parallel execution via `--num-workers N`.
+- Added `src/noctilux/worker.py` with `ProcessingTask`/`ProcessingResult` dataclasses and `process_task` worker function.
+- Main process pre-allocates output paths, dispatches tasks to workers, collects results, and writes metadata.
+- Workers handle image loading, pipeline transforms, and output saving; main process is the sole metadata writer.
+- Added `--num-workers` CLI argument (overrides `runtime.num_workers` config).
+- Seed determinism preserved: `combine_seed` produces identical seeds regardless of execution order.
+- Resume (`--resume`), skip-existing (`--skip-existing`), and retry-failed (`--retry-failed`) work in parallel mode.
+- Default remains `num_workers=1` (serial execution) for safety.
+- Added `tests/test_parallel.py` with 14 tests covering unit and integration scenarios.
+- Serial execution unchanged when `num_workers=1`.
+
 ## 0.5.2
 
 - Added serial resume support (`--resume`): skip already-completed outputs from existing metadata.

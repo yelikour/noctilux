@@ -70,6 +70,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--retry-failed", action="store_true",
         help="Re-process only previously failed outputs.",
     )
+    run_parser.add_argument(
+        "--num-workers", type=int, default=None,
+        help="Number of worker processes (default: from config, or 1 for serial).",
+    )
     run_parser.set_defaults(func=run_command)
 
     preview_parser = subparsers.add_parser("preview", help="Generate a preview grid for a single image.")
@@ -156,6 +160,11 @@ def run_command(args: argparse.Namespace) -> int:
     config = _load_and_validate(args.config)
     if getattr(args, "dry_run", False):
         config["runtime"]["dry_run"] = True
+
+    num_workers_override = getattr(args, "num_workers", None)
+    if num_workers_override is not None:
+        config["runtime"]["num_workers"] = num_workers_override
+
     samples: list[dict[str, Any]]
     try:
         samples = scan_inputs(config)
@@ -167,8 +176,7 @@ def run_command(args: argparse.Namespace) -> int:
             raise
     pipelines = build_pipelines(config)
 
-    if config["runtime"]["num_workers"] > 1:
-        LOGGER.warning("num_workers is currently reserved and execution is still serial in v0.3.x.")
+    num_workers = config["runtime"].get("num_workers", 1)
 
     if config["runtime"]["dry_run"]:
         planned_outputs = sum(pipeline.repeat for pipeline in pipelines) * len(samples)
@@ -185,6 +193,35 @@ def run_command(args: argparse.Namespace) -> int:
         )
         return 0
 
+    if num_workers > 1:
+        return _run_parallel(
+            config=config,
+            samples=samples,
+            pipelines=pipelines,
+            num_workers=num_workers,
+            do_resume=do_resume,
+            do_skip_existing=do_skip_existing,
+            do_retry_failed=do_retry_failed,
+        )
+
+    return _run_serial(
+        config=config,
+        samples=samples,
+        pipelines=pipelines,
+        do_resume=do_resume,
+        do_skip_existing=do_skip_existing,
+        do_retry_failed=do_retry_failed,
+    )
+
+
+def _run_serial(
+    config: dict[str, Any],
+    samples: list[dict[str, Any]],
+    pipelines: list[Any],
+    do_resume: bool,
+    do_skip_existing: bool,
+    do_retry_failed: bool,
+) -> int:
     saver = OutputSaver(config["output"])
     saver.prepare_directories()
 
@@ -320,8 +357,166 @@ def run_command(args: argparse.Namespace) -> int:
     print(f"skip_existing_enabled: {do_skip_existing}")
     print(f"retry_failed_enabled: {do_retry_failed}")
     print(f"metadata_path: {saver.metadata_root}")
-    LOGGER.info("Completed run. metadata=%s", saver.metadata_root)
+    LOGGER.info("Completed serial run. metadata=%s", saver.metadata_root)
     return 0
+
+
+def _run_parallel(
+    config: dict[str, Any],
+    samples: list[dict[str, Any]],
+    pipelines: list[Any],
+    num_workers: int,
+    do_resume: bool,
+    do_skip_existing: bool,
+    do_retry_failed: bool,
+) -> int:
+    from concurrent.futures import ProcessPoolExecutor
+
+    from noctilux.worker import ProcessingTask, pre_allocate_output_paths, process_task
+
+    saver = OutputSaver(config["output"])
+    saver.prepare_directories()
+
+    skip_keys: set[str] = set()
+    if do_resume:
+        skip_keys = load_success_keys(saver.metadata_root)
+        LOGGER.info("Resume mode: %d completed outputs will be skipped.", len(skip_keys))
+    elif do_retry_failed:
+        skip_keys = load_failed_keys(saver.metadata_root)
+        LOGGER.info("Retry-failed mode: %d failed outputs will be retried.", len(skip_keys))
+
+    output_paths = pre_allocate_output_paths(samples, pipelines, config["output"])
+
+    pipeline_configs: dict[str, dict[str, Any]] = {}
+    for pipeline in pipelines:
+        pipeline_configs[pipeline.name] = {
+            "name": pipeline.name,
+            "transforms": pipeline.transforms,
+        }
+
+    tasks: list[ProcessingTask] = []
+    skipped_count = 0
+
+    for sample in samples:
+        for pipeline in pipelines:
+            for repeat_index in range(pipeline.repeat):
+                key = build_processing_key(sample["sample_id"], pipeline.name, repeat_index)
+
+                if do_resume and key in skip_keys:
+                    skipped_count += 1
+                    continue
+
+                if do_retry_failed and key not in skip_keys:
+                    skipped_count += 1
+                    continue
+
+                if do_skip_existing and not do_retry_failed:
+                    if check_output_exists(sample, pipeline.name, repeat_index, saver):
+                        skipped_count += 1
+                        continue
+
+                output_path = output_paths.get((sample["sample_id"], pipeline.name, repeat_index))
+                if output_path is None:
+                    output_path = saver.build_output_path(sample, pipeline.name, repeat_index)
+
+                seed = pipeline.seed
+                tasks.append(
+                    ProcessingTask(
+                        sample_id=sample["sample_id"],
+                        image_path=Path(sample["image_path"]),
+                        pipeline_config=pipeline_configs[pipeline.name],
+                        pipeline_name=pipeline.name,
+                        repeat_index=repeat_index,
+                        seed=seed,
+                        output_path=output_path,
+                        output_config=config["output"],
+                        sample=sample,
+                    )
+                )
+
+    writer = MetadataWriter(saver.metadata_root)
+    fail_fast = config["runtime"].get("fail_fast", False)
+
+    LOGGER.info(
+        "Starting parallel run: %d tasks, %d workers, %d skipped.",
+        len(tasks),
+        num_workers,
+        skipped_count,
+    )
+
+    show_progress = config["runtime"].get("show_progress", True)
+
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        futures = [executor.submit(process_task, task) for task in tasks]
+        future_iter = tqdm(futures, desc="Processing", unit="task") if show_progress else futures
+
+        for future in future_iter:
+            result = future.result()
+
+            if result.success:
+                writer.write_success(
+                    manifest_row=_build_manifest_record(
+                        sample=_find_sample(samples, result.sample_id),
+                        pipeline_name=result.pipeline_name,
+                        repeat_index=result.repeat_index,
+                        input_info=result.input_info,
+                        output_info=result.output_info,
+                        output_path=result.output_path,
+                        seed=result.seed,
+                        success=True,
+                        error="",
+                    ),
+                    transform_log_row=_build_transform_record(
+                        sample=_find_sample(samples, result.sample_id),
+                        pipeline_name=result.pipeline_name,
+                        repeat_index=result.repeat_index,
+                        seed=result.seed,
+                        transforms=result.transform_log,
+                        input_info=result.input_info,
+                        output_info=result.output_info,
+                        output_path=result.output_path,
+                        success=True,
+                        error=None,
+                    ),
+                )
+            else:
+                sample = _find_sample(samples, result.sample_id)
+                _record_failure(
+                    writer=writer,
+                    sample=sample,
+                    pipeline_name=result.pipeline_name,
+                    repeat_index=result.repeat_index,
+                    seed=result.seed,
+                    input_info=result.input_info,
+                    transforms=result.transform_log,
+                    stage=result.stage,
+                    error=result.error or "",
+                )
+                if fail_fast:
+                    raise RuntimeError(
+                        f"Task failed in fail-fast mode: "
+                        f"{result.sample_id}/{result.pipeline_name}/{result.repeat_index}: {result.error}"
+                    )
+
+    writer.close()
+    print(f"total_samples: {len(samples)}")
+    print(f"total_outputs: {writer.total_count}")
+    print(f"success_count: {writer.success_count}")
+    print(f"failed_count: {writer.failed_count}")
+    print(f"skipped_count: {skipped_count}")
+    print(f"resume_enabled: {do_resume}")
+    print(f"skip_existing_enabled: {do_skip_existing}")
+    print(f"retry_failed_enabled: {do_retry_failed}")
+    print(f"metadata_path: {saver.metadata_root}")
+    LOGGER.info("Completed parallel run. metadata=%s", saver.metadata_root)
+    return 0
+
+
+def _find_sample(samples: list[dict[str, Any]], sample_id: str) -> dict[str, Any]:
+    for sample in samples:
+        if sample["sample_id"] == sample_id:
+            return sample
+    return {"sample_id": sample_id, "image_path": "", "metadata": {}}
 
 
 def make_manifest_command(args: argparse.Namespace) -> int:

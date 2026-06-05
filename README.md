@@ -326,9 +326,9 @@ Officially tested Python versions: 3.10, 3.11, 3.12. Python 3.13 may work locall
 
 新增 transform 的完整示例见 [docs/adding_new_transform.md](docs/adding_new_transform.md)。
 
-## Resume and Skip
+## Resume, Skip, and Parallel Execution
 
-Noctilux supports serial resume and skip-existing modes:
+Noctilux supports resume, skip-existing, and parallel execution modes:
 
 ```bash
 # Skip already-completed outputs from existing metadata
@@ -339,9 +339,12 @@ noctilux run --config config.yaml --skip-existing
 
 # Re-process only previously failed outputs
 noctilux run --config config.yaml --retry-failed
+
+# Run with parallel workers (experimental)
+noctilux run --config config.yaml --num-workers 4
 ```
 
-`--resume` and `--retry-failed` are mutually exclusive. `--skip-existing` can be combined with `--resume`. Execution remains serial.
+`--resume` and `--retry-failed` are mutually exclusive. `--skip-existing` can be combined with `--resume`. `--num-workers N` enables `ProcessPoolExecutor`-based parallel execution (default: 1, serial). Resume and skip modes work in both serial and parallel modes.
 
 ## Contributing
 
@@ -368,7 +371,7 @@ See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for the full roadmap. Planned milestone
 
 ## 当前限制
 
-- `num_workers` 仍然只是未来并行接口占位，`v0.4.x` 仍为串行执行。
+- `num_workers` 启用 `ProcessPoolExecutor` 并行执行（实验性，v0.5.3）。默认 1 为串行模式。
 - OpenCV backend 仅支持 4 个 transform，其余仍使用 Pillow。
 - 尚未实现 detection / segmentation annotation 同步增强。
 - `preview` 只做视觉检查，不会生成 `manifest.csv`、`transform_log.jsonl` 或其他批处理 metadata。

@@ -196,21 +196,20 @@ def test_run_records_load_image_failure_stage(tmp_path: Path, capsys: pytest.Cap
     capsys.readouterr()
 
 
-def test_num_workers_gt_one_warns_and_keeps_serial_results(
+def test_num_workers_gt_one_uses_parallel_execution(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
-    caplog: pytest.LogCaptureFixture,
 ) -> None:
     config = _base_config(tmp_path)
-    config["runtime"]["num_workers"] = 4
+    config["runtime"]["num_workers"] = 2
     _make_image(tmp_path / "images" / "class_a" / "sample.jpg")
     config_path = _write_config(tmp_path, config)
 
     exit_code = main(["run", "--config", str(config_path)])
 
-    capsys.readouterr()
+    captured = capsys.readouterr()
     assert exit_code == 0
-    assert "num_workers is currently reserved and execution is still serial in v0.3.x." in caplog.text
+    assert "success_count: 1" in captured.out
     output_dir = tmp_path / "output" / "images" / "resize_32" / "class_a"
     outputs = sorted(output_dir.glob("*.jpg"))
     assert len(outputs) == 1
