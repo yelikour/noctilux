@@ -69,6 +69,7 @@ Metadata output structure from `noctilux run`:
 - `v0.3.7`: backend design documentation — `docs/backend_design.md`, OpenCV architecture plan.
 - `v0.4.0`: minimal optional OpenCV backend — `resize_exact`, `resize_long_edge`, `gaussian_blur`, `rotate` with `backend: opencv` config support.
 - `v0.4.1`: OpenCV backend CI coverage, unified installation instructions, improved tests.
+- `v0.4.2`: CI maintenance — updated GitHub Actions to `checkout@v6` and `setup-python@v6` to reduce Node.js deprecation warnings.
 
 Important tag state:
 

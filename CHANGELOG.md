@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.2
+
+- Updated GitHub Actions workflow dependencies to `actions/checkout@v6` and `actions/setup-python@v6`.
+- Reduced CI Node.js 20 deprecation warnings.
+- Kept test matrix and OpenCV backend job unchanged.
+
 ## 0.4.1
 
 - Added CI coverage for optional OpenCV backend (Python 3.12, `.[dev,opencv]`).

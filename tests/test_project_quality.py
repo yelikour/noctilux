@@ -245,6 +245,14 @@ def test_ci_opencv_backend_job_installs_opencv_extra() -> None:
     assert ".[dev,opencv]" in text
 
 
+def test_ci_uses_modern_actions() -> None:
+    text = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+    assert "actions/checkout@v6" in text
+    assert "actions/setup-python@v6" in text
+    assert "actions/checkout@v4" not in text
+    assert "actions/setup-python@v5" not in text
+
+
 def test_opencv_missing_backend_error_message() -> None:
     import sys
     from unittest.mock import patch
