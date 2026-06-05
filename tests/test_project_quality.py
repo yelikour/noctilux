@@ -183,3 +183,31 @@ def test_security_md_exists() -> None:
 def test_readme_mentions_roadmap() -> None:
     text = Path("README.md").read_text(encoding="utf-8")
     assert "PROJECT_GUIDE.md" in text or "roadmap" in text.lower()
+
+
+def test_backend_design_doc_exists() -> None:
+    assert Path("docs/backend_design.md").exists()
+
+
+def test_readme_mentions_opencv_backend_roadmap() -> None:
+    text = Path("README.md").read_text(encoding="utf-8")
+    assert "OpenCV" in text
+
+
+def test_project_guide_mentions_v040_backend() -> None:
+    text = Path("PROJECT_GUIDE.md").read_text(encoding="utf-8")
+    v040_section = text[text.find("v0.4.0") : text.find("v0.5.0")] if "v0.4.0" in text else ""
+    assert v040_section, "PROJECT_GUIDE.md should have a v0.4.0 section"
+    assert "backend" in v040_section.lower()
+
+
+def test_backend_design_mentions_opencv_optional() -> None:
+    text = Path("docs/backend_design.md").read_text(encoding="utf-8")
+    assert "noctilux[opencv]" in text
+
+
+def test_backend_design_confirms_pillow_default() -> None:
+    text = Path("docs/backend_design.md").read_text(encoding="utf-8")
+    assert "PIL.Image.Image" in text
+    assert "default" in text.lower()
+

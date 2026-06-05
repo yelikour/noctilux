@@ -1865,9 +1865,19 @@ YAML 调用：
 
 目标：optional backend 探索。
 
-计划：
+设计文档：`docs/backend_design.md`
 
-* OpenCV backend（optional dependency）
+分阶段计划：
+
+* v0.4.0a / design：backend 架构设计文档，不修改代码
+* v0.4.0：最小 OpenCV backend 实现（4 个优先 transform）
+* v0.4.x：扩展 backend 覆盖范围，考虑 Albumentations 等
+
+原则：
+
+* Pillow + NumPy 仍是默认 backend
+* OpenCV 为 optional dependency（`noctilux[opencv]`）
+* 所有 transform 输入输出仍为 PIL.Image.Image
 * 考虑 Albumentations / imagecorruptions / AugLy 等 backend
 * 所有外部 backend 为 optional dependencies，主流程不强依赖
 

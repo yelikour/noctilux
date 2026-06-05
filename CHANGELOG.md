@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.7
+
+- Added `docs/backend_design.md` with OpenCV backend architecture plan.
+- Documented planned optional backend design: registry, configuration format, error handling, test strategy.
+- Updated roadmap and agent handoff notes for v0.4.0 backend phases.
+- Updated README roadmap with OpenCV backend plan.
+
 ## 0.3.6
 
 - Added GitHub issue templates (bug report, feature request).
