@@ -3,7 +3,7 @@
 [![CI](https://github.com/yelikour/noctilux/actions/workflows/ci.yml/badge.svg)](https://github.com/yelikour/noctilux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.4.0-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.4.1-orange.svg)](CHANGELOG.md)
 
 **Noctilux** is a general-purpose offline image batch processing and augmentation toolkit. It uses YAML configs to define reproducible, traceable image processing pipelines for pre-training data preparation.
 
@@ -21,10 +21,10 @@ Noctilux 是一个通用的离线图像批处理与增强工具。它面向训�
 
 ## Current Status
 
-- Version: `0.4.0`
+- Version: `0.4.1`
 - Execution: serial (parallel planned for v0.5.0)
 - Default backend: Pillow + NumPy
-- Optional backend: OpenCV (selected transforms)
+- Optional backend: OpenCV via `noctilux[opencv]` (CI-tested on Python 3.12)
 - Python: 3.10, 3.11, 3.12 (CI-tested)
 - Not yet supported: parallel processing, annotation sync, PyPI release
 

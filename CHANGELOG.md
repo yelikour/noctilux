@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1
+
+- Added CI coverage for optional OpenCV backend (Python 3.12, `.[dev,opencv]`).
+- Unified OpenCV installation instructions and error messages across docs and source.
+- Improved OpenCV backend project-quality tests.
+- Kept Pillow + NumPy as the default backend.
+
 ## 0.4.0
 
 - Added optional OpenCV backend foundation (`noctilux[opencv]`).

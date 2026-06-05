@@ -216,6 +216,12 @@ These four transforms have clear Pillow equivalents, making comparison testing s
 - Added backend-aware tests (with `pytest.importorskip("cv2")` for optional tests).
 - Kept Pillow as default backend. OpenCV is opt-in via `backend: opencv` in YAML.
 
+### v0.4.1 — OpenCV CI and stabilization (completed)
+
+- Added dedicated `opencv-backend` CI job (Python 3.12, `.[dev,opencv]`).
+- Unified OpenCV installation instructions and error messages.
+- Improved project-quality tests for backend consistency.
+
 ### v0.4.x — Broader coverage (planned)
 
 - Add OpenCV implementations for more transforms where beneficial.

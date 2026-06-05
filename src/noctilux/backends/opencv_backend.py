@@ -22,8 +22,8 @@ def is_opencv_available() -> bool:
 def require_opencv() -> None:
     if not is_opencv_available():
         raise BackendNotAvailableError(
-            "OpenCV backend requires 'opencv-python'. "
-            "Install it with: pip install 'noctilux[opencv]'"
+            "OpenCV backend requires opencv-python-headless. "
+            "Install with: pip install \"noctilux[opencv]\""
         )
 
 

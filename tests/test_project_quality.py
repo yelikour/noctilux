@@ -233,6 +233,18 @@ def test_opencv_optional_dependency_in_pyproject() -> None:
     assert "opencv-python-headless" in text
 
 
+def test_ci_workflow_has_opencv_backend_job() -> None:
+    text = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+    assert "opencv-backend:" in text
+    assert "test_opencv_backend.py" in text
+    assert "opencv_backend.yaml" in text
+
+
+def test_ci_opencv_backend_job_installs_opencv_extra() -> None:
+    text = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+    assert ".[dev,opencv]" in text
+
+
 def test_opencv_missing_backend_error_message() -> None:
     import sys
     from unittest.mock import patch

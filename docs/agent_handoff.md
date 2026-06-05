@@ -68,6 +68,7 @@ Metadata output structure from `noctilux run`:
 - `v0.3.6`: community health files — issue templates, PR template, SECURITY.md, CODE_OF_CONDUCT.md, README support/roadmap sections.
 - `v0.3.7`: backend design documentation — `docs/backend_design.md`, OpenCV architecture plan.
 - `v0.4.0`: minimal optional OpenCV backend — `resize_exact`, `resize_long_edge`, `gaussian_blur`, `rotate` with `backend: opencv` config support.
+- `v0.4.1`: OpenCV backend CI coverage, unified installation instructions, improved tests.
 
 Important tag state:
 
