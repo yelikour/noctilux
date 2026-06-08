@@ -21,6 +21,11 @@ CLI commands:
 - `noctilux inspect-config`: validate and summarize a YAML config without processing images.
 - `noctilux list-transforms`: list registered transforms.
 
+Internal annotation status:
+
+- `noctilux.annotations` contains schema dataclasses and prototype COCO/YOLO readers.
+- Annotation parsing is not wired into `noctilux run`; current execution and metadata remain image-only.
+
 Current transform categories:
 
 - Compression: JPEG, WebP, PNG resave, double JPEG compression.
@@ -43,6 +48,7 @@ Metadata output structure from `noctilux run`:
 ## Directory Map
 
 - `src/noctilux/`: package source, CLI, config loading, scanning, pipeline execution, saving, metadata, preview, report, and worker logic.
+- `src/noctilux/annotations/`: internal annotation schema and read-only parser prototypes; not connected to run.
 - `src/noctilux/transforms/`: registered transform implementations grouped by domain.
 - `configs/examples/`: runnable example configs, including `quickstart_sample.yaml`.
 - `configs/presets/`: reusable preset pipeline configs for common offline augmentation workflows.
@@ -79,6 +85,7 @@ Metadata output structure from `noctilux run`:
 - `v0.5.6`: parallel edge-case fixes — duplicate manifest `sample_id` rejection, final-path `--skip-existing` collision handling, and serial load-image `skip_broken_images=False` alignment.
 - `v0.6.0`: experimental parallel hardening — clearer future exception handling, bounded in-flight submission, spawn smoke coverage, and save-image failure alignment. Parallel remains hardening-stage, not stable.
 - `v0.7.0`: annotation synchronization design only — `docs/annotation_sync_design.md`. No code changes. Image-only behavior unchanged. Future annotation implementation must not break existing metadata schema.
+- `v0.7.1`: annotation schema/parser prototype — internal dataclasses and read-only COCO/YOLO parsers. Not wired into `noctilux run`; image-only behavior and metadata schema unchanged.
 
 Important tag state:
 
@@ -153,7 +160,7 @@ noctilux report \
 - `v0.4.x`: broader backend coverage.
 - `v0.5.0`: parallel execution and resume support.
 - `v0.6.0`: parallel hardening completed; parallel still not declared stable.
-- `v0.7.x`: annotation synchronization design and prototypes. v0.7.0 is design-only; no annotation code implemented yet.
+- `v0.7.x`: annotation synchronization design and prototypes. v0.7.1 adds internal parser prototypes, but they are not wired into `noctilux run`.
 - `v0.8.0`: detection and segmentation annotation synchronization.
 - Adjust the roadmap when the user gives a more specific task.
 

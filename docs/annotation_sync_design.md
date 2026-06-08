@@ -4,9 +4,18 @@ This document describes the planned annotation synchronization architecture for 
 
 ## Current State
 
-Noctilux v0.7.0 only processes image-level augmentation. When transforms like resize, crop, or flip are applied, no corresponding updates are made to object detection bounding boxes, segmentation masks, or keypoint coordinates. This is the correct behavior for image classification, where annotations are simple labels unaffected by geometric transforms.
+Noctilux v0.7.1 still processes image-level augmentation only. When transforms like resize, crop, or flip are applied, no corresponding updates are made to object detection bounding boxes, segmentation masks, or keypoint coordinates. This is the correct behavior for image classification, where annotations are simple labels unaffected by geometric transforms.
 
-Image-only behavior remains unchanged and will remain the default. Annotation synchronization is an opt-in feature for task-aware pipelines.
+v0.7.1 adds an internal annotation schema plus read-only COCO-like JSON and single-file YOLO TXT parser prototypes. The parsers are not wired into `noctilux run`, do not write annotations, and do not perform annotation synchronization.
+
+Image-only behavior remains unchanged and will remain the default. Annotation synchronization is a future opt-in feature for task-aware pipelines.
+
+## v0.7.1 Prototype Status
+
+- Completed: lightweight annotation schema dataclasses and simple dictionary round trips.
+- Completed: minimal read-only COCO and YOLO parser prototypes.
+- Not implemented: annotation writers, transform synchronization, config schema, metadata changes, or run integration.
+- The COCO/YOLO readers are prototypes, not complete dataset-format or synchronization support.
 
 ## Why Annotation Sync Matters
 
@@ -122,54 +131,17 @@ These transforms modify pixel values but not positions:
 - `rotate` with expand: changes canvas size; bbox must account for padding.
 - Any future transform that changes image geometry in non-trivial ways.
 
-## Data Structure Drafts
+## Data Structure Prototype (v0.7.1)
 
-```python
-@dataclass
-class BoundingBox:
-    """Axis-aligned bounding box in pixel coordinates."""
-    x_min: float
-    y_min: float
-    x_max: float
-    y_max: float
-    label: str
-    is_crowd: bool = False
-    confidence: float = 1.0
+The internal `noctilux.annotations` module provides:
 
-@dataclass
-class MaskRef:
-    """Reference to a segmentation mask file."""
-    mask_path: Path
-    format: str  # "png", "rle", "polygon"
-    label: str
+- `BoundingBox`: COCO-style pixel coordinates (`x`, `y`, `width`, `height`) plus category and optional annotation fields.
+- `Keypoint`: pixel coordinates plus visibility.
+- `MaskRef`: an optional mask path, raw segmentation payload, and optional size.
+- `AnnotationRecord`: one image's dimensions, paths, boxes, masks, keypoints, and optional raw source data.
 
-@dataclass
-class Keypoint:
-    """Single keypoint with visibility flag."""
-    x: float
-    y: float
-    visibility: int  # 0=not visible, 1=visible
-    label: str
-
-@dataclass
-class AnnotationRecord:
-    """All annotations for a single image."""
-    sample_id: str
-    bboxes: list[BoundingBox]
-    masks: list[MaskRef]
-    keypoints: list[Keypoint]
-    source_format: str  # "coco", "yolo", "voc", "manifest"
-
-@dataclass
-class AnnotationTransformResult:
-    """Result of applying annotation sync for one transform."""
-    transform_name: str
-    applied: bool
-    bboxes: list[BoundingBox]
-    masks: list[MaskRef]
-    keypoints: list[Keypoint]
-    removed_bboxes: list[BoundingBox]  # bboxes clipped away
-```
+Each schema dataclass supports a simple `to_dict()` / `from_dict()` round trip. These structures are parser-only in
+v0.7.1. `AnnotationTransformResult` and transform synchronization remain future work.
 
 ## Pipeline Design
 
@@ -367,13 +339,13 @@ annotations:
 - Define data structures, transform classification, config schema, and error handling.
 - No code changes. Image-only behavior unchanged.
 
-### v0.7.1 — Annotation Schema and Parser Prototype
+### v0.7.1 — Annotation Schema and Parser Prototype (completed)
 
-- Implement `AnnotationRecord`, `BoundingBox`, `MaskRef`, `Keypoint`, `AnnotationTransformResult` dataclasses.
-- Implement COCO JSON parser: load annotations, build image-to-annotation index.
-- Implement COCO JSON writer: output per-image annotation files.
-- Add `supports_annotations` and `transform_annotations` methods to `BaseTransform` with default passthrough behavior.
-- No pipeline integration yet. No changes to image-only behavior.
+- Implemented `AnnotationRecord`, `BoundingBox`, `MaskRef`, and `Keypoint` dataclasses.
+- Added `BaseAnnotationParser` plus minimal read-only COCO-like JSON and YOLO TXT parser prototypes.
+- Added parser/schema unit tests and image-only run smoke coverage.
+- Did not add annotation writers, transform synchronization, config changes, metadata changes, or CLI integration.
+- Parser prototypes remain separate from `noctilux run`; image-only behavior is unchanged.
 
 ### v0.7.2 — Bbox Sync for Resize and Flip
 
@@ -390,9 +362,9 @@ annotations:
 - Add tests for crop edge cases (full elimination, partial clipping, multi-object).
 - Image-only pipelines still unchanged.
 
-### v0.8.0 — COCO and YOLO Minimal Support
+### v0.8.0 — COCO and YOLO Minimal Sync Support
 
-- Add YOLO TXT parser and writer (normalized coordinates).
+- Harden COCO/YOLO readers and add annotation writers.
 - Add VOC XML parser (read-only for initial support).
 - Integration with `noctilux run` CLI for annotation-aware configs.
 - End-to-end tests with real annotation formats.

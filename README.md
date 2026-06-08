@@ -3,7 +3,7 @@
 [![CI](https://github.com/yelikour/noctilux/actions/workflows/ci.yml/badge.svg)](https://github.com/yelikour/noctilux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.7.0-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.7.1-orange.svg)](CHANGELOG.md)
 
 **Noctilux** is a general-purpose offline image batch processing and augmentation toolkit. It uses YAML configs to define reproducible, traceable image processing pipelines for pre-training data preparation.
 
@@ -22,10 +22,11 @@ Noctilux 是一个通用的离线图像批处理与增强工具。它面向训�
 
 ## Current Status
 
-- Version: `0.7.0`
+- Version: `0.7.1`
 - Execution: serial by default; experimental hardening-stage parallel mode with `--num-workers N` when N > 1
 - Default backend: Pillow + NumPy
 - Optional backend: OpenCV via `noctilux[opencv]` (CI-tested on Python 3.12)
+- Annotation prototype: internal schema plus prototype COCO/YOLO readers in `noctilux.annotations`; not wired into `noctilux run`.
 - Python: 3.10, 3.11, 3.12 (CI-tested)
 - Not yet supported: stable parallel processing, annotation sync, PyPI release
 
@@ -323,6 +324,7 @@ Officially tested Python versions: 3.10, 3.11, 3.12. Python 3.13 may work locall
 - [docs/github_public_setup.md](docs/github_public_setup.md)
 - [docs/backend_design.md](docs/backend_design.md)
 - [docs/parallel_resume_design.md](docs/parallel_resume_design.md)
+- [docs/annotation_sync_design.md](docs/annotation_sync_design.md)
 
 ## 新增 transform
 
@@ -377,11 +379,11 @@ See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for the full roadmap. Planned milestone
 - v0.4.0: optional OpenCV backend (resize_exact, resize_long_edge, gaussian_blur, rotate)
 - v0.5.x: metadata-safe resume and experimental parallel execution
 - v0.6.0: parallel hardening while keeping serial execution as the default
-- v0.7.x: annotation synchronization design and prototypes (design only, not yet implemented)
+- v0.7.1: annotation schema / parser prototype (internal only; annotation sync not yet supported in `noctilux run`)
 
 ## 当前限制
 
 - `num_workers` 启用 `ProcessPoolExecutor` 并行执行（实验性 / hardening-stage，v0.6.0）。默认 1 为串行模式。
 - OpenCV backend 仅支持 4 个 transform，其余仍使用 Pillow。
-- 尚未实现 detection / segmentation annotation 同步增强。
+- 尚未正式支持 detection / segmentation annotation 同步增强；v0.7.1 只包含内部 schema/parser 读取原型，未接入 `noctilux run`。
 - `preview` 只做视觉检查，不会生成 `manifest.csv`、`transform_log.jsonl` 或其他批处理 metadata。

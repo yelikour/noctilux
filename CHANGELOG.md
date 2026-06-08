@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.1
+
+- Added annotation schema dataclasses.
+- Added prototype COCO and YOLO annotation parsers.
+- Kept annotation parsing separate from image-only run workflow.
+- Added annotation parser tests.
+
 ## 0.7.0
 
 - Added annotation synchronization design document (`docs/annotation_sync_design.md`).
