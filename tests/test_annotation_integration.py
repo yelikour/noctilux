@@ -576,3 +576,261 @@ def test_image_only_with_resume_still_works(tmp_path: Path, capsys: pytest.Captu
     # Run again with --resume - should not error since annotations are disabled
     exit_code = main(["run", "--config", str(config_path), "--resume"])
     assert exit_code == 0
+
+
+# --- v0.9.1 crop bbox sync tests ---
+
+
+def test_center_crop_ratio_syncs_bbox(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # 100x50 image, bbox [10,5,20,10], ratio=0.5 → crop window (25,12,50,25)
+    # intersection [25,12,5,3] → translated [0,0,5,3]
+    exit_code, output_root, _ = _run_annotation_config(
+        tmp_path, capsys,
+        transforms=[{"name": "center_crop_ratio", "params": {"ratio": 0.5}}],
+    )
+    assert exit_code == 0
+    assert _first_bbox(_read_annotation_output(output_root)) == pytest.approx([0, 0, 5, 3])
+
+
+def test_center_crop_ratio_bbox_fully_inside(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # ratio=0.8 → crop window (10,5,80,40), bbox [10,5,20,10] fully inside
+    # translated [0,0,20,10]
+    exit_code, output_root, _ = _run_annotation_config(
+        tmp_path, capsys,
+        transforms=[{"name": "center_crop_ratio", "params": {"ratio": 0.8}}],
+    )
+    assert exit_code == 0
+    assert _first_bbox(_read_annotation_output(output_root)) == pytest.approx([0, 0, 20, 10])
+
+
+def test_center_crop_ratio_removes_bbox_outside(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    annotations = [
+        {"id": "ann-1", "image_id": 1, "category_id": 7, "bbox": [80, 40, 15, 8]},
+    ]
+    exit_code, output_root, _ = _run_annotation_config(
+        tmp_path, capsys,
+        transforms=[{"name": "center_crop_ratio", "params": {"ratio": 0.5}}],
+        annotations=annotations,
+    )
+    assert exit_code == 0
+    payload = _read_annotation_output(output_root)
+    assert len(payload["annotations"]) == 0
+
+
+def test_center_crop_ratio_output_image_dimensions(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code, output_root, _ = _run_annotation_config(
+        tmp_path, capsys,
+        transforms=[{"name": "center_crop_ratio", "params": {"ratio": 0.5}}],
+    )
+    assert exit_code == 0
+    payload = _read_annotation_output(output_root)
+    assert payload["images"][0]["width"] == 50
+    assert payload["images"][0]["height"] == 25
+
+
+def test_square_crop_syncs_bbox(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # 100x50 → side=50, left=25, top=0, crop window (25,0,50,50)
+    # bbox [10,5,20,10]: intersection [25,5,5,10] → translated [0,5,5,10]
+    exit_code, output_root, _ = _run_annotation_config(
+        tmp_path, capsys,
+        transforms=[{"name": "square_crop", "params": {}}],
+    )
+    assert exit_code == 0
+    assert _first_bbox(_read_annotation_output(output_root)) == pytest.approx([0, 5, 5, 10])
+
+
+def test_random_crop_ratio_syncs_bbox(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code, output_root, _ = _run_annotation_config(
+        tmp_path, capsys,
+        transforms=[{"name": "random_crop_ratio", "params": {"ratio": 0.8}}],
+    )
+    assert exit_code == 0
+    payload = _read_annotation_output(output_root)
+    assert len(payload["annotations"]) >= 1
+
+
+def test_random_crop_ratio_is_seed_deterministic(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    results: list[list[float]] = []
+    for i in range(2):
+        _make_image(tmp_path / "images" / "sample.jpg")
+        coco_path = _write_coco(tmp_path)
+        name = f"det_{i}"
+        config = _with_annotations(
+            _base_config(
+                tmp_path,
+                transforms=[{"name": "random_crop_ratio", "params": {"ratio": 0.7}}],
+                output_name=name,
+            ),
+            coco_path,
+        )
+        config_path = _write_config(tmp_path, config, name=f"{name}.yaml")
+        exit_code = main(["run", "--config", str(config_path)])
+        capsys.readouterr()
+        assert exit_code == 0
+        results.append(_first_bbox(_read_annotation_output(tmp_path / name)))
+    assert results[0] == pytest.approx(results[1])
+
+
+def test_random_resized_crop_syncs_bbox(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code, output_root, _ = _run_annotation_config(
+        tmp_path, capsys,
+        transforms=[{
+            "name": "random_resized_crop",
+            "params": {
+                "scale_min": 0.5, "scale_max": 0.8,
+                "ratio_min": 0.8, "ratio_max": 1.25,
+                "output_width": 64, "output_height": 64,
+                "interpolation": "nearest",
+            },
+        }],
+    )
+    assert exit_code == 0
+    payload = _read_annotation_output(output_root)
+    assert len(payload["annotations"]) >= 1
+    assert payload["images"][0]["width"] == 64
+    assert payload["images"][0]["height"] == 64
+
+
+def test_random_resized_crop_is_seed_deterministic(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    rrc_transform = {
+        "name": "random_resized_crop",
+        "params": {
+            "scale_min": 0.5, "scale_max": 0.8,
+            "ratio_min": 0.8, "ratio_max": 1.25,
+            "output_width": 64, "output_height": 64,
+            "interpolation": "nearest",
+        },
+    }
+    results: list[list[float]] = []
+    for i in range(2):
+        _make_image(tmp_path / "images" / "sample.jpg")
+        coco_path = _write_coco(tmp_path)
+        name = f"rrc_det_{i}"
+        config = _with_annotations(
+            _base_config(tmp_path, transforms=[rrc_transform], output_name=name),
+            coco_path,
+        )
+        config_path = _write_config(tmp_path, config, name=f"{name}.yaml")
+        exit_code = main(["run", "--config", str(config_path)])
+        capsys.readouterr()
+        assert exit_code == 0
+        results.append(_first_bbox(_read_annotation_output(tmp_path / name)))
+    assert results[0] == pytest.approx(results[1])
+
+
+def test_crop_with_multiple_bboxes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # center_crop_ratio ratio=0.5 on 100x50 → crop window (25,12,50,25)
+    annotations = [
+        # Fully inside crop region
+        {"id": "ann-1", "image_id": 1, "category_id": 7, "bbox": [30, 15, 10, 5]},
+        # Partially clipped by crop edge
+        {"id": "ann-2", "image_id": 1, "category_id": 7, "bbox": [20, 10, 15, 8]},
+        # Fully outside crop region
+        {"id": "ann-3", "image_id": 1, "category_id": 7, "bbox": [80, 40, 10, 5]},
+    ]
+    exit_code, output_root, _ = _run_annotation_config(
+        tmp_path, capsys,
+        transforms=[{"name": "center_crop_ratio", "params": {"ratio": 0.5}}],
+        annotations=annotations,
+    )
+    assert exit_code == 0
+    payload = _read_annotation_output(output_root)
+    assert len(payload["annotations"]) == 2
+    bboxes = sorted(
+        [ann["bbox"] for ann in payload["annotations"]],
+        key=lambda b: (b[0], b[1]),
+    )
+    assert bboxes[0] == pytest.approx([0, 0, 10, 6])  # ann-2 clipped
+    assert bboxes[1] == pytest.approx([5, 3, 10, 5])  # ann-1 fully inside
+
+
+def test_crop_all_bboxes_removed_output_has_zero_annotations(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    annotations = [
+        {"id": "ann-1", "image_id": 1, "category_id": 7, "bbox": [80, 40, 15, 8]},
+    ]
+    exit_code, output_root, _ = _run_annotation_config(
+        tmp_path, capsys,
+        transforms=[{"name": "center_crop_ratio", "params": {"ratio": 0.3}}],
+        annotations=annotations,
+    )
+    assert exit_code == 0
+    payload = _read_annotation_output(output_root)
+    assert len(payload["annotations"]) == 0
+    assert len(payload["images"]) == 1
+
+
+def test_crop_then_horizontal_flip(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # center_crop_ratio ratio=0.8 → crop (10,5,80,40), bbox translated [0,0,20,10]
+    # horizontal_flip on 80x40: x = 80-0-20 = 60 → [60,0,20,10]
+    exit_code, output_root, _ = _run_annotation_config(
+        tmp_path, capsys,
+        transforms=[
+            {"name": "center_crop_ratio", "params": {"ratio": 0.8}},
+            {"name": "horizontal_flip", "params": {}},
+        ],
+    )
+    assert exit_code == 0
+    assert _first_bbox(_read_annotation_output(output_root)) == pytest.approx([60, 0, 20, 10])
+
+
+def test_crop_then_resize_exact(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # center_crop_ratio ratio=0.8 → crop (10,5,80,40), bbox [0,0,20,10]
+    # resize_exact 160x80: scale 2x → [0,0,40,20]
+    exit_code, output_root, _ = _run_annotation_config(
+        tmp_path, capsys,
+        transforms=[
+            {"name": "center_crop_ratio", "params": {"ratio": 0.8}},
+            {"name": "resize_exact", "params": {"width": 160, "height": 80, "interpolation": "nearest"}},
+        ],
+    )
+    assert exit_code == 0
+    assert _first_bbox(_read_annotation_output(output_root)) == pytest.approx([0, 0, 40, 20])
+
+
+def test_photometric_before_crop_does_not_affect_crop_sync(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code, output_root, _ = _run_annotation_config(
+        tmp_path, capsys,
+        transforms=[
+            {"name": "brightness_contrast", "params": {"brightness": 1.2, "contrast": 0.8}},
+            {"name": "center_crop_ratio", "params": {"ratio": 0.5}},
+        ],
+    )
+    assert exit_code == 0
+    assert _first_bbox(_read_annotation_output(output_root)) == pytest.approx([0, 0, 5, 3])
+
+
+def test_missing_crop_window_raises_error() -> None:
+    from noctilux.annotations.integration import AnnotationIntegrationError, AnnotationRunContext
+
+    record = AnnotationRecord(
+        image_id=1, width=100, height=50,
+        boxes=[BoundingBox(x=10, y=5, width=20, height=10, category_id=7)],
+    )
+    ctx = AnnotationRunContext.from_records(
+        {1: record}, output_path=Path("/tmp/out.json"), on_unsupported_transform="error",
+    )
+    with pytest.raises(AnnotationIntegrationError, match="Missing crop_window"):
+        ctx._apply_transform(record, {"name": "center_crop_ratio", "applied": True})
+
+
+def test_missing_output_size_for_random_resized_crop_raises_error() -> None:
+    from noctilux.annotations.integration import AnnotationIntegrationError, AnnotationRunContext
+
+    record = AnnotationRecord(
+        image_id=1, width=100, height=50,
+        boxes=[BoundingBox(x=10, y=5, width=20, height=10, category_id=7)],
+    )
+    ctx = AnnotationRunContext.from_records(
+        {1: record}, output_path=Path("/tmp/out.json"), on_unsupported_transform="error",
+    )
+    transform_log = {
+        "name": "random_resized_crop",
+        "applied": True,
+        "crop_window": {"x": 10, "y": 5, "width": 80, "height": 40, "source_width": 100, "source_height": 50},
+    }
+    with pytest.raises(AnnotationIntegrationError, match="Missing output_size"):
+        ctx._apply_transform(record, transform_log)

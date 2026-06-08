@@ -26,7 +26,8 @@ Internal annotation status:
 - `noctilux.annotations` contains schema dataclasses, prototype COCO/YOLO readers and writers, bbox resize/flip/crop geometry helpers, and minimal run integration helpers.
 - v0.8.0 wires experimental opt-in COCO bbox-only annotation IO into `noctilux run` for selected transforms. Image-only configs remain the default and existing metadata schema fields remain unchanged.
 - v0.8.1 adds guardrails: annotation IO rejects resume, skip-existing, retry-failed, and parallel execution; output_path must differ from input_path; unsupported transform and unmatched sample warnings appear in run summary; annotations.enabled=false bypasses sub-field validation.
-- v0.9.0 exposes crop_window metadata in transform log for all crop transforms (center_crop_ratio, random_crop_ratio, square_crop, random_resized_crop). Crop transforms write crop_window to the context dict; pipeline reads it into the log entry. Annotation crop bbox sync is not yet implemented.
+- v0.9.0 exposes crop_window metadata in transform log for all crop transforms (center_crop_ratio, random_crop_ratio, square_crop, random_resized_crop). Crop transforms write crop_window to the context dict; pipeline reads it into the log entry.
+- v0.9.1 wires crop_window into annotation crop bbox sync for all four crop transforms. center_crop_ratio, random_crop_ratio, and square_crop clip and translate bboxes; random_resized_crop clips, translates, then resizes to output dimensions. Missing crop_window raises AnnotationIntegrationError. Rotate, mask/polygon, and keypoint sync remain deferred.
 
 Current transform categories:
 
@@ -95,6 +96,7 @@ Metadata output structure from `noctilux run`:
 - `v0.8.0`: minimal annotation IO integration — experimental opt-in COCO bbox-only input/output in `noctilux run`, bbox sync for resize_exact, resize_long_edge, horizontal_flip, and vertical_flip. Image-only behavior and metadata schema fields unchanged.
 - `v0.8.1`: annotation IO guardrails — reject resume/skip-existing/retry-failed/parallel, output overwrite safety, improved warning traceability, disabled sub-field validation bypass.
 - `v0.9.0`: crop window metadata — transform log records exact crop coordinates for all crop transforms; annotation crop bbox sync remains deferred.
+- `v0.9.1`: annotation crop bbox sync — wires crop_window into crop_record for center_crop_ratio, random_crop_ratio, square_crop, and random_resized_crop; random_resized_crop applies crop then resize. Missing crop_window raises AnnotationIntegrationError. Rotate, mask/polygon, and keypoint sync remain deferred.
 
 Important tag state:
 
@@ -175,6 +177,7 @@ noctilux report \
 - `v0.8.0`: experimental opt-in COCO bbox-only annotation IO integration; full detection/segmentation sync remains future work.
 - `v0.8.1`: annotation IO guardrails (resume/parallel/overwrite/warnings); image-only behavior unchanged.
 - `v0.9.0`: crop window metadata in transform log for all crop transforms; annotation crop sync not yet enabled.
+- `v0.9.1`: annotation crop bbox sync for all crop transforms using crop_window metadata; rotate, mask/polygon, and keypoint sync remain deferred.
 - Adjust the roadmap when the user gives a more specific task.
 
 ## New Agent Onboarding Flow

@@ -1992,11 +1992,25 @@ YAML 调用：
 * annotation crop bbox sync 尚未实现，仅暴露 metadata
 * 顺手修复 v0.8.1 审计 Low：unsupported transform 文案分离、input/output path 检查顺序
 
+### v0.9.1（已完成）
+
+目标：annotation crop bbox sync。
+
+已完成：
+
+* 所有四个 crop transform 的 bbox sync：center_crop_ratio、random_crop_ratio、square_crop、random_resized_crop
+* center_crop_ratio、random_crop_ratio、square_crop 裁剪 bbox 到 crop window，平移到裁剪相对坐标系，按 min_area 过滤
+* random_resized_crop 先裁剪 bbox，再 resize 到输出尺寸
+* transform log 缺少 crop_window 时抛出 AnnotationIntegrationError
+* random_resized_crop 缺少 output_size 时抛出 AnnotationIntegrationError
+* 更新 unsupported transform 错误信息列出所有支持的 bbox transforms
+* 新增 16 个 crop bbox sync 集成测试
+* image-only 行为和 metadata schema 不变
+
 仍不支持：
 
 * mask / polygon / keypoint sync
 * rotate bbox sync
-* crop annotation bbox sync（crop_window metadata 已暴露，sync 接入待后续版本）
 * full COCO feature parity
 * YOLO dataset-level integration
 * VOC XML integration

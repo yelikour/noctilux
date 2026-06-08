@@ -88,7 +88,7 @@ Current status: The repository is now public (as of v0.3.5). This checklist was 
 - Noctilux does not publish to PyPI yet.
 - Distribution is via `git clone` and `pip install -e .`.
 - OpenCV backend is available as an optional dependency (`noctilux[opencv]`). The default quickstart does not require OpenCV.
-- Annotation IO is experimental and opt-in. v0.8.0 wires minimal COCO bbox-only input/output into `noctilux run` for selected transforms. v0.8.1 adds guardrails for resume, parallel, and output overwrite safety. v0.9.0 exposes crop window metadata in transform log for all crop transforms. Full detection/segmentation/keypoint annotation sync is not formally supported. Image-only workflows remain the default and are unaffected.
+- Annotation IO is experimental and opt-in. v0.8.0 wires minimal COCO bbox-only input/output into `noctilux run` for selected transforms. v0.8.1 adds guardrails for resume, parallel, and output overwrite safety. v0.9.0 exposes crop window metadata in transform log for all crop transforms. v0.9.1 adds crop bbox sync for all four crop transforms. Rotate, mask/polygon, and keypoint annotation sync remain deferred. Image-only workflows remain the default and are unaffected.
 
 ## Known Historical Notes
 

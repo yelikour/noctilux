@@ -6,14 +6,33 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from noctilux.annotations.geometry import horizontal_flip_record, resize_record, vertical_flip_record
+from noctilux.annotations.geometry import (
+    crop_record,
+    horizontal_flip_record,
+    resize_record,
+    vertical_flip_record,
+)
 from noctilux.annotations.parsers import CocoAnnotationParser
 from noctilux.annotations.schema import AnnotationRecord, BoundingBox
 from noctilux.annotations.writers import CocoAnnotationWriter
 
 LOGGER = logging.getLogger("noctilux")
 
-SUPPORTED_BBOX_TRANSFORMS = {"resize_exact", "resize_long_edge", "horizontal_flip", "vertical_flip"}
+SUPPORTED_BBOX_TRANSFORMS = {
+    "resize_exact",
+    "resize_long_edge",
+    "horizontal_flip",
+    "vertical_flip",
+    "center_crop_ratio",
+    "random_crop_ratio",
+    "square_crop",
+    "random_resized_crop",
+}
+_CROP_ONLY_TRANSFORMS = {
+    "center_crop_ratio",
+    "random_crop_ratio",
+    "square_crop",
+}
 PHOTOMETRIC_TRANSFORMS = {
     "jpeg_compression",
     "webp_compression",
@@ -152,16 +171,43 @@ class AnnotationRunContext:
             return horizontal_flip_record(record)
         if name == "vertical_flip":
             return vertical_flip_record(record)
+        if name in _CROP_ONLY_TRANSFORMS:
+            return self._apply_crop(record, transform_log)
+        if name == "random_resized_crop":
+            return self._apply_crop_with_resize(record, transform_log)
         if name in PHOTOMETRIC_TRANSFORMS:
             return record
 
         return self._handle_unsupported(record, name)
 
+    def _apply_crop(self, record: AnnotationRecord, transform_log: dict[str, Any]) -> AnnotationRecord:
+        crop_window = _require_crop_window(transform_log)
+        return crop_record(
+            record,
+            crop_x=crop_window["x"],
+            crop_y=crop_window["y"],
+            crop_width=crop_window["width"],
+            crop_height=crop_window["height"],
+        )
+
+    def _apply_crop_with_resize(self, record: AnnotationRecord, transform_log: dict[str, Any]) -> AnnotationRecord:
+        crop_window = _require_crop_window(transform_log)
+        cropped = crop_record(
+            record,
+            crop_x=crop_window["x"],
+            crop_y=crop_window["y"],
+            crop_width=crop_window["width"],
+            crop_height=crop_window["height"],
+        )
+        width, height = _target_size_from_log(transform_log)
+        return resize_record(cropped, new_width=width, new_height=height)
+
     def _handle_unsupported(self, record: AnnotationRecord, name: str) -> AnnotationRecord:
         header = (
             f"Annotation bbox sync does not support transform {name!r}. "
             "Supported bbox transforms are resize_exact, resize_long_edge, "
-            "horizontal_flip, and vertical_flip."
+            "horizontal_flip, vertical_flip, center_crop_ratio, "
+            "random_crop_ratio, square_crop, and random_resized_crop."
         )
         if self.on_unsupported_transform == "ignore":
             LOGGER.warning(
@@ -315,6 +361,17 @@ def _annotation_path_keys(value: str) -> list[str]:
     if path.name:
         keys.append(path.name)
     return _dedupe(keys)
+
+
+def _require_crop_window(transform_log: dict[str, Any]) -> dict[str, int]:
+    crop_window = transform_log.get("crop_window")
+    if not isinstance(crop_window, dict) or "x" not in crop_window:
+        name = transform_log.get("name")
+        raise AnnotationIntegrationError(
+            f"Missing crop_window in transform log for annotation bbox sync transform {name!r}. "
+            "Crop transforms must record crop_window metadata."
+        )
+    return crop_window
 
 
 def _dedupe(values: list[str]) -> list[str]:

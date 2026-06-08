@@ -447,6 +447,21 @@ annotations:
 - Annotation crop bbox sync is **not yet implemented**. The crop_window metadata is preparatory; the next phase will wire `crop_window` into `crop_record` in the annotation integration layer.
 - Image-only behavior and metadata schema fields remain unchanged.
 
+### v0.9.1 — Annotation Crop Bbox Sync (completed)
+
+- Wired `crop_window` from transform logs into `crop_record` in the annotation integration layer.
+- Added bbox sync for all four crop transforms: `center_crop_ratio`, `random_crop_ratio`, `square_crop`, `random_resized_crop`.
+- `center_crop_ratio`, `random_crop_ratio`, and `square_crop` clip bboxes to the crop window, translate to crop-relative coordinates, and filter by `min_area`.
+- `random_resized_crop` applies crop (via `crop_record`) then resize (via `resize_record`) to produce correct bbox coordinates in the final output dimensions.
+- Missing `crop_window` in transform log for a crop transform raises `AnnotationIntegrationError` instead of silently outputting stale bboxes.
+- Missing `output_size` for `random_resized_crop` raises `AnnotationIntegrationError`.
+- `SUPPORTED_BBOX_TRANSFORMS` now includes all four crop transforms.
+- Updated unsupported transform error message to list all supported bbox transforms.
+- Added `_CROP_ONLY_TRANSFORMS` constant and `_require_crop_window` helper.
+- Added 16 new integration tests covering crop bbox sync, seed determinism, multi-bbox scenarios, transform chains, and error cases.
+- Rotate bbox sync, mask/polygon, and keypoint synchronization remain deferred.
+- Image-only behavior and metadata schema fields remain unchanged.
+
 ## Out of Scope
 
 - Training framework or model evaluation.

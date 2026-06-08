@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.1
+
+- Added annotation crop bbox sync for all four crop transforms: center_crop_ratio, random_crop_ratio, square_crop, and random_resized_crop.
+- Crop transforms clip bboxes to the crop window, translate to crop-relative coordinates, and filter by min_area.
+- random_resized_crop applies crop then resize, producing correct bbox coordinates in the final output size.
+- Missing crop_window in transform log raises AnnotationIntegrationError instead of silently outputting stale bboxes.
+- Updated unsupported transform error message to list all supported bbox transforms.
+- Added 16 new crop bbox sync integration tests.
+- Kept image-only behavior and metadata schema unchanged.
+
 ## 0.9.0
 
 - Added crop_window metadata to transform log for all crop transforms (center_crop_ratio, random_crop_ratio, square_crop, random_resized_crop).
