@@ -181,3 +181,176 @@ def test_motion_blur_runs_for_cardinal_angles(angle: int) -> None:
 def test_invalid_transform_params_raise(name: str, params: dict[str, object]) -> None:
     with pytest.raises(ValueError):
         build_transform(name, params=params)
+
+
+# --- crop_window metadata tests ---
+
+
+def test_center_crop_ratio_records_crop_window() -> None:
+    image = Image.new("RGB", (100, 80))
+    transform = build_transform("center_crop_ratio", params={"ratio": 0.5})
+    ctx = _context(0)
+    output = transform(image, context=ctx)
+
+    cw = ctx["crop_window"]
+    assert cw == {
+        "x": 25,
+        "y": 20,
+        "width": 50,
+        "height": 40,
+        "source_width": 100,
+        "source_height": 80,
+    }
+    assert output.size == (cw["width"], cw["height"])
+
+
+def test_random_crop_ratio_records_crop_window() -> None:
+    image = Image.new("RGB", (100, 80))
+    transform = build_transform("random_crop_ratio", params={"ratio": 0.7})
+    ctx = _context(42)
+    output = transform(image, context=ctx)
+
+    cw = ctx["crop_window"]
+    assert isinstance(cw["x"], int)
+    assert isinstance(cw["y"], int)
+    assert cw["width"] == 70
+    assert cw["height"] == 56
+    assert cw["source_width"] == 100
+    assert cw["source_height"] == 80
+    assert output.size == (cw["width"], cw["height"])
+
+
+def test_random_crop_ratio_crop_window_is_seed_deterministic() -> None:
+    image = Image.new("RGB", (100, 80))
+    transform = build_transform("random_crop_ratio", params={"ratio": 0.7})
+
+    ctx_a = _context(42)
+    transform(image, context=ctx_a)
+
+    ctx_b = _context(42)
+    transform(image, context=ctx_b)
+
+    assert ctx_a["crop_window"] == ctx_b["crop_window"]
+
+
+def test_square_crop_records_crop_window() -> None:
+    image = Image.new("RGB", (100, 80))
+    transform = build_transform("square_crop", params={})
+    ctx = _context(0)
+    output = transform(image, context=ctx)
+
+    cw = ctx["crop_window"]
+    assert cw == {
+        "x": 10,
+        "y": 0,
+        "width": 80,
+        "height": 80,
+        "source_width": 100,
+        "source_height": 80,
+    }
+    assert output.size == (80, 80)
+
+
+def test_random_resized_crop_records_crop_window() -> None:
+    image = Image.new("RGB", (100, 80))
+    transform = build_transform(
+        "random_resized_crop",
+        params={
+            "scale_min": 0.5,
+            "scale_max": 0.8,
+            "ratio_min": 0.75,
+            "ratio_max": 1.25,
+            "output_width": 40,
+            "output_height": 30,
+        },
+    )
+    ctx = _context(99)
+    output = transform(image, context=ctx)
+
+    cw = ctx["crop_window"]
+    assert isinstance(cw["x"], int)
+    assert isinstance(cw["y"], int)
+    assert isinstance(cw["width"], int)
+    assert isinstance(cw["height"], int)
+    assert cw["source_width"] == 100
+    assert cw["source_height"] == 80
+    assert 0 <= cw["x"]
+    assert cw["x"] + cw["width"] <= 100
+    assert 0 <= cw["y"]
+    assert cw["y"] + cw["height"] <= 80
+    assert output.size == (40, 30)
+
+
+def test_random_resized_crop_crop_window_is_seed_deterministic() -> None:
+    image = Image.new("RGB", (100, 80))
+    transform = build_transform(
+        "random_resized_crop",
+        params={
+            "scale_min": 0.5,
+            "scale_max": 0.8,
+            "ratio_min": 0.75,
+            "ratio_max": 1.25,
+            "output_width": 40,
+            "output_height": 30,
+        },
+    )
+
+    ctx_a = _context(99)
+    transform(image, context=ctx_a)
+
+    ctx_b = _context(99)
+    transform(image, context=ctx_b)
+
+    assert ctx_a["crop_window"] == ctx_b["crop_window"]
+
+
+@pytest.mark.parametrize(
+    ("name", "params"),
+    [
+        ("resize_exact", {"width": 50, "height": 40, "interpolation": "nearest"}),
+        ("resize_long_edge", {"long_edge": 50, "interpolation": "nearest"}),
+        ("horizontal_flip", {}),
+        ("vertical_flip", {}),
+        ("brightness_contrast", {"brightness": 1.0, "contrast": 1.0}),
+        ("gaussian_blur", {"radius": 1.0}),
+        ("jpeg_compression", {"quality": 80}),
+    ],
+)
+def test_non_crop_transforms_do_not_produce_crop_window(name: str, params: dict[str, object]) -> None:
+    image = Image.new("RGB", (100, 80))
+    transform = build_transform(name, params=params)
+    ctx = _context(0)
+    transform(image, context=ctx)
+    assert "crop_window" not in ctx, f"{name} should not produce crop_window"
+
+
+def test_pipeline_crop_transform_produces_crop_window_in_log() -> None:
+    from noctilux.pipeline import AugmentPipeline
+
+    image = Image.new("RGB", (100, 80))
+    pipeline = AugmentPipeline(
+        name="crop_test",
+        transforms=[
+            {"name": "center_crop_ratio", "params": {"ratio": 0.5}},
+            {"name": "brightness_contrast", "params": {"brightness": 1.0, "contrast": 1.0}},
+        ],
+        seed=42,
+    )
+    _, transform_logs, _ = pipeline.apply(
+        image=image,
+        sample={"sample_id": "test", "image_path": "test.jpg"},
+    )
+
+    assert len(transform_logs) == 2
+    crop_log = transform_logs[0]
+    assert "crop_window" in crop_log
+    assert crop_log["crop_window"]["width"] == 50
+    assert crop_log["crop_window"]["height"] == 40
+    assert crop_log["crop_window"]["source_width"] == 100
+    assert crop_log["crop_window"]["source_height"] == 80
+    assert crop_log["input_size"] == [100, 80]
+    assert crop_log["output_size"] == [50, 40]
+
+    photo_log = transform_logs[1]
+    assert "crop_window" not in photo_log
+    assert photo_log["input_size"] == [50, 40]

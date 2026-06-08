@@ -158,19 +158,22 @@ class AnnotationRunContext:
         return self._handle_unsupported(record, name)
 
     def _handle_unsupported(self, record: AnnotationRecord, name: str) -> AnnotationRecord:
-        message = (
+        header = (
             f"Annotation bbox sync does not support transform {name!r}. "
             "Supported bbox transforms are resize_exact, resize_long_edge, "
-            "horizontal_flip, and vertical_flip. "
-            "ignore may produce stale or incorrect bboxes and should only be used knowingly."
+            "horizontal_flip, and vertical_flip."
         )
         if self.on_unsupported_transform == "ignore":
-            LOGGER.warning("%s Skipping annotation update for this transform.", message)
+            LOGGER.warning(
+                "%s Skipping annotation update for this transform. "
+                "Stale or incorrect bboxes may result.",
+                header,
+            )
             self.unsupported_transform_warnings.append(
                 f"transform={name} image_id={record.image_id}"
             )
             return record
-        raise AnnotationIntegrationError(message)
+        raise AnnotationIntegrationError(header)
 
 
 def build_annotation_run_context(config: dict[str, Any]) -> AnnotationRunContext | None:
@@ -190,8 +193,6 @@ def build_annotation_run_context(config: dict[str, Any]) -> AnnotationRunContext
     else:
         output_path = Path(output_path)
 
-    records = CocoAnnotationParser().parse(input_path)
-
     resolved_input = input_path.resolve()
     resolved_output = output_path.resolve()
     if resolved_input == resolved_output:
@@ -200,6 +201,8 @@ def build_annotation_run_context(config: dict[str, Any]) -> AnnotationRunContext
             f"annotations.input_path ({input_path}). "
             "Overwriting the original annotation file is not allowed."
         )
+
+    records = CocoAnnotationParser().parse(input_path)
 
     return AnnotationRunContext.from_records(
         records,

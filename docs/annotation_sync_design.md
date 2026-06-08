@@ -435,6 +435,18 @@ annotations:
 - Fixed annotation config validation: `annotations.enabled=false` bypasses sub-field validation entirely.
 - Image-only behavior and metadata schema fields remain unchanged.
 
+### v0.9.0 — Crop Window Metadata Exposure (completed)
+
+- Added `crop_window` to transform log entries for all crop transforms: `center_crop_ratio`, `random_crop_ratio`, `square_crop`, `random_resized_crop`.
+- Crop transforms write crop window to the context dict during execution; the pipeline reads it into the log entry.
+- `crop_window` format: `{"x": int, "y": int, "width": int, "height": int, "source_width": int, "source_height": int}`.
+- Values are exact pixel coordinates in the original image coordinate system.
+- Random crops produce seed-deterministic crop_window values.
+- Non-crop transforms do not produce crop_window.
+- Transform log field is additive and backward-compatible.
+- Annotation crop bbox sync is **not yet implemented**. The crop_window metadata is preparatory; the next phase will wire `crop_window` into `crop_record` in the annotation integration layer.
+- Image-only behavior and metadata schema fields remain unchanged.
+
 ## Out of Scope
 
 - Training framework or model evaluation.

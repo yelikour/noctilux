@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0
+
+- Added crop_window metadata to transform log for all crop transforms (center_crop_ratio, random_crop_ratio, square_crop, random_resized_crop).
+- crop_window records exact pixel coordinates (x, y, width, height) and source image dimensions in the original coordinate system.
+- Random crop transforms produce seed-deterministic crop_window values.
+- Non-crop transforms do not produce crop_window.
+- Fixed unsupported transform error message wording (no longer mentions ignore under error policy).
+- Fixed annotation input/output path equality check to run before COCO parse.
+- Annotation crop bbox sync remains deferred; this release only exposes metadata.
+- Kept image-only behavior and metadata schema unchanged.
+
 ## 0.8.1
 
 - Added guardrails: annotation IO rejects resume, skip-existing, retry-failed, and parallel execution modes.

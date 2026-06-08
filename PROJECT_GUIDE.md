@@ -1976,11 +1976,27 @@ YAML 调用：
 * 修复 annotations.enabled=false 时跳过子字段校验
 * image-only 行为和 metadata schema 字段保持不变
 
+---
+
+### v0.9.0（已完成）
+
+目标：crop window metadata exposure。
+
+已完成：
+
+* 所有 crop transform（center_crop_ratio、random_crop_ratio、square_crop、random_resized_crop）在 transform log 中记录 crop_window
+* crop_window 格式：x, y, width, height, source_width, source_height（原图坐标系下的整数像素值）
+* random crop 在固定 seed 下 crop_window 可复现
+* 非 crop transform 不产生 crop_window
+* transform log 新字段为 additive，不影响现有 metadata schema
+* annotation crop bbox sync 尚未实现，仅暴露 metadata
+* 顺手修复 v0.8.1 审计 Low：unsupported transform 文案分离、input/output path 检查顺序
+
 仍不支持：
 
 * mask / polygon / keypoint sync
 * rotate bbox sync
-* crop integration（当前 transform log 未暴露可靠 crop window）
+* crop annotation bbox sync（crop_window metadata 已暴露，sync 接入待后续版本）
 * full COCO feature parity
 * YOLO dataset-level integration
 * VOC XML integration

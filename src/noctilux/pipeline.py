@@ -100,6 +100,8 @@ class AugmentPipeline:
                     f"Transform '{spec['name']}' returned {type(current_image)!r}, expected PIL.Image.Image."
                 )
             log_entry["output_size"] = list(current_image.size)
+            if context is not None and "crop_window" in context:
+                log_entry["crop_window"] = context["crop_window"]
             transform_logs.append(log_entry)
 
         return current_image, transform_logs, run_seed
