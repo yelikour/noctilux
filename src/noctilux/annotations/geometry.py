@@ -55,14 +55,14 @@ def crop_record(
     record: AnnotationRecord,
     crop_x: float,
     crop_y: float,
-    crop_width: float,
-    crop_height: float,
+    crop_width: int,
+    crop_height: int,
     min_area: float = 1.0,
 ) -> AnnotationRecord:
     crop_x = _validate_nonnegative_number(crop_x, "crop_x")
     crop_y = _validate_nonnegative_number(crop_y, "crop_y")
-    crop_width = _validate_positive_number(crop_width, "crop_width")
-    crop_height = _validate_positive_number(crop_height, "crop_height")
+    crop_width = _validate_positive_int(crop_width, "crop_width")
+    crop_height = _validate_positive_int(crop_height, "crop_height")
     min_area = _validate_nonnegative_number(min_area, "min_area")
     cropped_boxes = [
         cropped_box
@@ -199,6 +199,12 @@ def _validate_nonnegative_number(value: float, field_name: str) -> float:
     if not isinstance(value, int | float) or not math.isfinite(value) or value < 0:
         raise ValueError(f"{field_name} must be a non-negative finite number.")
     return float(value)
+
+
+def _validate_positive_int(value: int, field_name: str) -> int:
+    if not isinstance(value, int) or value <= 0:
+        raise ValueError(f"{field_name} must be a positive integer pixel dimension.")
+    return value
 
 
 def _require_dimension(value: int | None, field_name: str) -> int:

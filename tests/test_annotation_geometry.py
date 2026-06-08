@@ -303,3 +303,80 @@ def _make_record(width: int | None = 200, height: int | None = 100) -> Annotatio
         ],
         raw={"source": {"format": "unit"}},
     )
+
+
+# --- v0.7.4 crop int-validation tests ---
+
+
+def test_crop_record_output_dimensions_are_int() -> None:
+    record = _make_record()
+
+    cropped = crop_record(record, crop_x=10, crop_y=0, crop_width=90, crop_height=60)
+
+    assert isinstance(cropped.width, int)
+    assert isinstance(cropped.height, int)
+    assert cropped.width == 90
+    assert cropped.height == 60
+
+
+def test_crop_record_rejects_float_crop_dimensions() -> None:
+    record = _make_record()
+
+    with pytest.raises(ValueError, match="crop_width"):
+        crop_record(record, crop_x=0, crop_y=0, crop_width=100.5, crop_height=100)
+    with pytest.raises(ValueError, match="crop_height"):
+        crop_record(record, crop_x=0, crop_y=0, crop_width=100, crop_height=100.5)
+
+
+def test_crop_record_edge_touching_bbox_returns_none() -> None:
+    box = BoundingBox(x=100, y=100, width=10, height=10, category_id=3)
+
+    result = crop_box(box, crop_x=0, crop_y=0, crop_width=100, crop_height=100)
+
+    assert result is None
+
+
+def test_crop_box_exact_min_area_retained() -> None:
+    box = BoundingBox(x=0, y=0, width=5, height=5, category_id=3)
+
+    result = crop_box(box, crop_x=0, crop_y=0, crop_width=3, crop_height=3, min_area=9.0)
+
+    assert result is not None
+    assert result.area == 9.0
+
+
+def test_crop_record_works_without_record_dimensions() -> None:
+    record = AnnotationRecord(
+        image_id="img",
+        width=None,
+        height=None,
+        boxes=[BoundingBox(x=5, y=5, width=20, height=20, category_id=1)],
+    )
+
+    cropped = crop_record(record, crop_x=0, crop_y=0, crop_width=30, crop_height=30)
+
+    assert len(cropped.boxes) == 1
+    assert isinstance(cropped.width, int)
+    assert cropped.width == 30
+
+
+def test_crop_record_copies_masks_and_keypoints_without_sync() -> None:
+    from noctilux.annotations.schema import Keypoint, MaskRef
+
+    record = AnnotationRecord(
+        image_id="img",
+        width=200,
+        height=200,
+        boxes=[BoundingBox(x=5, y=5, width=20, height=20, category_id=1)],
+        masks=[MaskRef(segmentation=[[1, 2, 3]], size=[200, 200])],
+        keypoints=[Keypoint(x=15, y=15, visible=2)],
+    )
+    original_masks = record.masks[0].to_dict()
+    original_kps = record.keypoints[0].to_dict()
+
+    cropped = crop_record(record, crop_x=0, crop_y=0, crop_width=100, crop_height=100)
+
+    assert len(cropped.masks) == 1
+    assert cropped.masks[0].to_dict() == original_masks
+    assert len(cropped.keypoints) == 1
+    assert cropped.keypoints[0].to_dict() == original_kps

@@ -1932,7 +1932,8 @@ YAML 调用：
 * v0.7.0：annotation sync 设计文档（无代码改动）
 * v0.7.1：annotation schema / parser prototype（AnnotationRecord, BoundingBox, COCO parser）
 * v0.7.2：bbox sync for resize / flip
-* v0.7.3：crop bbox handling（clipping, elimination, min visibility）
+* v0.7.3：crop bbox handling（clipping, elimination, min_area）
+* v0.7.4：annotation writer prototype（COCO JSON writer, YOLO TXT writer；未接入 `noctilux run`）
 
 原则：
 

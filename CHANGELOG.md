@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.4
+
+- Added prototype COCO and YOLO annotation writers.
+- Clarified crop min_area behavior vs planned min_bbox_visibility.
+- Tightened crop_record output dimensions to require positive integer pixel values.
+- Added annotation writer tests and crop int-validation tests.
+- Kept annotation IO separate from image-only run workflow.
+
 ## 0.7.3
 
 - Added bbox crop geometry primitives.

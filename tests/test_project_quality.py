@@ -344,3 +344,21 @@ def test_annotation_sync_design_confirms_image_only_unchanged() -> None:
     text = Path("docs/annotation_sync_design.md").read_text(encoding="utf-8")
     assert "image-only" in text.lower() or "unchanged" in text.lower()
 
+
+# --- v0.7.4 annotation writer tests ---
+
+
+def test_annotation_writers_module_exists() -> None:
+    assert Path("src/noctilux/annotations/writers.py").exists()
+
+
+def test_annotation_sync_design_mentions_writers() -> None:
+    text = Path("docs/annotation_sync_design.md").read_text(encoding="utf-8")
+    assert "writer" in text.lower()
+
+
+def test_agent_handoff_mentions_writer_prototype() -> None:
+    text = Path("docs/agent_handoff.md").read_text(encoding="utf-8")
+    assert "writer" in text.lower()
+    assert "v0.7.4" in text
+

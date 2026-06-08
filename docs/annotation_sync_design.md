@@ -4,9 +4,9 @@ This document describes the planned annotation synchronization architecture for 
 
 ## Current State
 
-Noctilux v0.7.3 still processes image-level augmentation only. During `noctilux run`, transforms like resize, crop, or flip do not update object detection bounding boxes, segmentation masks, or keypoint coordinates. This is the correct behavior for image classification, where annotations are simple labels unaffected by geometric transforms.
+Noctilux v0.7.4 still processes image-level augmentation only. During `noctilux run`, transforms like resize, crop, or flip do not update object detection bounding boxes, segmentation masks, or keypoint coordinates. This is the correct behavior for image classification, where annotations are simple labels unaffected by geometric transforms.
 
-v0.7.3 adds internal bbox crop clipping/filtering helpers on top of the v0.7.1 schema/parser prototypes and v0.7.2 resize/flip helpers. These helpers are not wired into `noctilux run`, do not write annotations, and do not change pipeline or metadata behavior.
+v0.7.4 adds prototype COCO and YOLO annotation writers on top of the v0.7.1 schema/parser, v0.7.2 resize/flip helpers, and v0.7.3 crop helpers. Writers are not wired into `noctilux run`, do not change pipeline or metadata behavior, and annotation sync is not yet supported.
 
 Image-only behavior remains unchanged and will remain the default. Annotation synchronization is a future opt-in feature for task-aware pipelines.
 
@@ -305,11 +305,12 @@ Key rules:
 
 - Bboxes with zero overlap area after crop are removed.
 - Bboxes with partial overlap are clipped to the new image bounds.
-- The minimum visible area ratio threshold is configurable (default: 0.0, keep all partial bboxes):
+- The current crop primitive (`crop_box` / `crop_record` in v0.7.3) uses `min_area` as an absolute area threshold: intersections with area below `min_area` are removed. This threshold defaults to 1.0 pixel².
+- `min_bbox_visibility` (a ratio-based threshold, e.g. 0.1 = 10% visible) is a planned future option for annotation-aware configs. It is not implemented yet. When added, it would complement `min_area`:
 
 ```yaml
 annotations:
-  min_bbox_visibility: 0.1  # remove bboxes with < 10% visible area after crop
+  min_bbox_visibility: 0.1  # future option: remove bboxes with < 10% visible area after crop
 ```
 
 ### Mask File Missing
@@ -379,6 +380,16 @@ annotations:
 - Added tests for full containment, partial clipping, filtering, immutability, validation, and field preservation.
 - Did not implement rotate, mask/polygon, or keypoint synchronization.
 - Did not integrate annotation sync into transforms, pipeline execution, CLI, config, or metadata.
+
+### v0.7.4 — Annotation Writer Prototype (completed)
+
+- Added prototype COCO-like JSON writer (`CocoAnnotationWriter`) and YOLO TXT writer (`YoloAnnotationWriter`).
+- COCO writer produces `images`, `annotations`, and `categories` with `[x, y, width, height]` bbox format.
+- YOLO writer produces normalized `class_id cx cy w h` lines; requires `record.width` and `record.height`.
+- Writers are standalone prototypes, not wired into `noctilux run` or CLI.
+- Tightened `crop_record` to require positive integer pixel dimensions for `crop_width`/`crop_height`.
+- Clarified `min_area` (current) vs `min_bbox_visibility` (planned future option) documentation.
+- Image-only behavior unchanged.
 
 ### v0.8.0 — COCO and YOLO Minimal Sync Support
 
