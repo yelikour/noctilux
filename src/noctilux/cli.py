@@ -179,7 +179,21 @@ def run_command(args: argparse.Namespace) -> int:
     pipelines = build_pipelines(config)
     annotation_context = build_annotation_run_context(config)
 
+    if annotation_context is not None:
+        if do_resume or do_skip_existing or do_retry_failed:
+            raise ValueError(
+                "Annotation IO currently supports fresh full runs only. "
+                "Resume / skip-existing / retry-failed with annotations are deferred "
+                "until annotation output merge semantics are implemented."
+            )
+
     num_workers = config["runtime"].get("num_workers", 1)
+
+    if annotation_context is not None and num_workers > 1:
+        raise ValueError(
+            "Annotation IO currently supports serial runs only. "
+            "Parallel annotation output ordering / merge semantics are deferred."
+        )
 
     if config["runtime"]["dry_run"]:
         planned_outputs = sum(pipeline.repeat for pipeline in pipelines) * len(samples)
@@ -429,6 +443,12 @@ def _run_serial(
     print(f"metadata_path: {saver.metadata_root}")
     if annotation_output_path is not None:
         print(f"annotation_output_path: {annotation_output_path}")
+        if annotation_context.unsupported_transform_warnings:
+            n_warn = len(annotation_context.unsupported_transform_warnings)
+            print(f"annotation_unsupported_transform_warnings: {n_warn}")
+        if annotation_context.unmatched_sample_count > 0:
+            n_unmatched = annotation_context.unmatched_sample_count
+            print(f"annotation_unmatched_samples: {n_unmatched}")
     LOGGER.info("Completed serial run. metadata=%s", saver.metadata_root)
     return 0
 
@@ -584,6 +604,12 @@ def _run_parallel(
     print(f"metadata_path: {saver.metadata_root}")
     if annotation_output_path is not None:
         print(f"annotation_output_path: {annotation_output_path}")
+        if annotation_context.unsupported_transform_warnings:
+            n_warn = len(annotation_context.unsupported_transform_warnings)
+            print(f"annotation_unsupported_transform_warnings: {n_warn}")
+        if annotation_context.unmatched_sample_count > 0:
+            n_unmatched = annotation_context.unmatched_sample_count
+            print(f"annotation_unmatched_samples: {n_unmatched}")
     LOGGER.info("Completed parallel run. metadata=%s", saver.metadata_root)
     return 0
 

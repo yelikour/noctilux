@@ -234,6 +234,9 @@ def _validate_annotations_config(annotations_cfg: Any) -> None:
     if not isinstance(enabled, bool):
         raise ValueError("annotations.enabled must be a boolean.")
 
+    if not enabled:
+        return
+
     bbox_only = annotations_cfg.get("bbox_only", True)
     if not isinstance(bbox_only, bool):
         raise ValueError("annotations.bbox_only must be a boolean.")
@@ -244,9 +247,6 @@ def _validate_annotations_config(annotations_cfg: Any) -> None:
             "annotations.on_unsupported_transform must be one of "
             f"{sorted(VALID_ANNOTATION_UNSUPPORTED_POLICIES)}."
         )
-
-    if not enabled:
-        return
 
     annotation_format = annotations_cfg.get("format", "coco")
     if annotation_format not in VALID_ANNOTATION_FORMATS:

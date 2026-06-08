@@ -3,7 +3,7 @@
 [![CI](https://github.com/yelikour/noctilux/actions/workflows/ci.yml/badge.svg)](https://github.com/yelikour/noctilux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.8.0-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.8.1-orange.svg)](CHANGELOG.md)
 
 **Noctilux** is a general-purpose offline image batch processing and augmentation toolkit. It uses YAML configs to define reproducible, traceable image processing pipelines for pre-training data preparation.
 
@@ -23,7 +23,7 @@ Noctilux 是一个通用的离线图像批处理与增强工具。它面向训�
 
 ## Current Status
 
-- Version: `0.8.0`
+- Version: `0.8.1`
 - Execution: serial by default; experimental hardening-stage parallel mode with `--num-workers N` when N > 1
 - Default backend: Pillow + NumPy
 - Optional backend: OpenCV via `noctilux[opencv]` (CI-tested on Python 3.12)
@@ -149,7 +149,7 @@ OpenCV backend currently supports: `resize_exact`, `resize_long_edge`, `gaussian
 
 ## Experimental Annotation IO
 
-v0.8.0 adds opt-in COCO-like bbox-only annotation IO. It is experimental and is not full annotation sync. Image-only configs do not need an `annotations` section and keep the same default behavior.
+v0.8.0 adds opt-in COCO-like bbox-only annotation IO. v0.8.1 adds guardrails for resume, parallel, and output overwrite safety. It is experimental and is not full annotation sync. Image-only configs do not need an `annotations` section and keep the same default behavior.
 
 ```yaml
 annotations:
@@ -401,10 +401,11 @@ See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for the full roadmap. Planned milestone
 - v0.7.4: annotation writer prototype — COCO JSON and YOLO TXT writers (internal only; not wired into `noctilux run`)
 - v0.7.5: annotation writer cleanup — unique annotation IDs, no standalone mask annotations, optional YOLO bounds validation
 - v0.8.0: experimental opt-in COCO bbox-only annotation IO integration for selected transforms
+- v0.8.1: annotation IO guardrails — reject resume/parallel, output overwrite safety, improved warning traceability
 
 ## 当前限制
 
 - `num_workers` 启用 `ProcessPoolExecutor` 并行执行（实验性 / hardening-stage，v0.6.0）。默认 1 为串行模式。
 - OpenCV backend 仅支持 4 个 transform，其余仍使用 Pillow。
-- Annotation IO 仍是实验性 opt-in；v0.8.0 只支持 COCO bbox-only minimal integration，不支持 mask / polygon / keypoint / rotate / crop annotation sync。
+- Annotation IO 仍是实验性 opt-in；v0.8.1 只支持 COCO bbox-only minimal integration，不支持 mask / polygon / keypoint / rotate / crop annotation sync。
 - `preview` 只做视觉检查，不会生成 `manifest.csv`、`transform_log.jsonl` 或其他批处理 metadata。

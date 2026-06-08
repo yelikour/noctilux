@@ -424,6 +424,17 @@ annotations:
 - Rotate bbox sync, YOLO dataset-level integration, VOC, and full COCO feature parity remain out of scope.
 - Image-only behavior and existing metadata schema fields remain unchanged.
 
+### v0.8.1 — Annotation IO Guardrails (completed)
+
+- Prohibited annotation IO with resume (`--resume`), skip-existing (`--skip-existing`), and retry-failed (`--retry-failed`) modes.
+- Prohibited annotation IO with parallel execution (`--num-workers > 1`).
+- Added guardrail: `annotations.output_path` must differ from `annotations.input_path`.
+- Added unsupported transform warning count to run summary output.
+- Added unmatched sample count to run summary output.
+- Added warning log for samples with no matching annotation record.
+- Fixed annotation config validation: `annotations.enabled=false` bypasses sub-field validation entirely.
+- Image-only behavior and metadata schema fields remain unchanged.
+
 ## Out of Scope
 
 - Training framework or model evaluation.

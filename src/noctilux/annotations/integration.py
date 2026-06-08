@@ -46,6 +46,8 @@ class AnnotationRunContext:
     output_path: Path
     on_unsupported_transform: str = "error"
     output_records: dict[str, AnnotationRecord] = field(default_factory=dict)
+    unsupported_transform_warnings: list[str] = field(default_factory=list)
+    unmatched_sample_count: int = 0
 
     @classmethod
     def from_records(
@@ -92,6 +94,14 @@ class AnnotationRunContext:
     ) -> AnnotationRecord | None:
         source_record = self.find_record(sample)
         if source_record is None:
+            self.unmatched_sample_count += 1
+            LOGGER.warning(
+                "No annotation record found for sample %s (image: %s) in pipeline %s. "
+                "Annotation output will not be generated for this sample.",
+                sample.get("sample_id", "?"),
+                sample.get("image_path", "?"),
+                pipeline_name,
+            )
             return None
 
         record = _bbox_only_record(source_record)
@@ -149,12 +159,16 @@ class AnnotationRunContext:
 
     def _handle_unsupported(self, record: AnnotationRecord, name: str) -> AnnotationRecord:
         message = (
-            f"Annotation bbox sync does not support transform {name!r} in v0.8.0. "
+            f"Annotation bbox sync does not support transform {name!r}. "
             "Supported bbox transforms are resize_exact, resize_long_edge, "
-            "horizontal_flip, and vertical_flip."
+            "horizontal_flip, and vertical_flip. "
+            "ignore may produce stale or incorrect bboxes and should only be used knowingly."
         )
         if self.on_unsupported_transform == "ignore":
             LOGGER.warning("%s Skipping annotation update for this transform.", message)
+            self.unsupported_transform_warnings.append(
+                f"transform={name} image_id={record.image_id}"
+            )
             return record
         raise AnnotationIntegrationError(message)
 
@@ -177,6 +191,16 @@ def build_annotation_run_context(config: dict[str, Any]) -> AnnotationRunContext
         output_path = Path(output_path)
 
     records = CocoAnnotationParser().parse(input_path)
+
+    resolved_input = input_path.resolve()
+    resolved_output = output_path.resolve()
+    if resolved_input == resolved_output:
+        raise AnnotationIntegrationError(
+            f"annotations.output_path ({output_path}) must differ from "
+            f"annotations.input_path ({input_path}). "
+            "Overwriting the original annotation file is not allowed."
+        )
+
     return AnnotationRunContext.from_records(
         records,
         output_path=output_path,

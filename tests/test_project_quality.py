@@ -320,7 +320,8 @@ def test_readme_mentions_annotation_sync_roadmap_but_not_supported() -> None:
 
 def test_project_guide_mentions_v07x_annotation_sync() -> None:
     text = Path("PROJECT_GUIDE.md").read_text(encoding="utf-8")
-    v07_section = text[text.find("v0.7") : text.find("v0.8.0")] if "v0.7" in text else ""
+    end_marker = "v0.8.0" if "v0.8.0" in text else "v0.8.1"
+    v07_section = text[text.find("v0.7") : text.find(end_marker)] if "v0.7" in text else ""
     assert v07_section, "PROJECT_GUIDE.md should have a v0.7.x section"
     assert "annotation" in v07_section.lower()
 

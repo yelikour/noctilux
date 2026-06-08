@@ -415,3 +415,164 @@ def test_annotation_config_rejects_missing_input_path(tmp_path: Path) -> None:
 
     with pytest.raises(FileNotFoundError, match="annotations.input_path does not exist"):
         validate_config(resolved)
+
+
+# --- v0.8.1 guardrail tests ---
+
+_BC_TRANSFORM = [{"name": "brightness_contrast", "params": {"brightness": 1.0, "contrast": 1.0}}]
+
+
+def test_annotation_enabled_rejects_resume(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level("ERROR", logger="noctilux")
+    _make_image(tmp_path / "images" / "sample.jpg")
+    coco_path = _write_coco(tmp_path)
+    config = _with_annotations(
+        _base_config(tmp_path, transforms=_BC_TRANSFORM),
+        coco_path,
+    )
+    config_path = _write_config(tmp_path, config)
+
+    exit_code = main(["run", "--config", str(config_path), "--resume"])
+    assert exit_code == 1
+    assert "fresh full runs only" in caplog.text
+
+
+def test_annotation_enabled_rejects_skip_existing(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level("ERROR", logger="noctilux")
+    _make_image(tmp_path / "images" / "sample.jpg")
+    coco_path = _write_coco(tmp_path)
+    config = _with_annotations(
+        _base_config(tmp_path, transforms=_BC_TRANSFORM),
+        coco_path,
+    )
+    config_path = _write_config(tmp_path, config)
+
+    exit_code = main(["run", "--config", str(config_path), "--skip-existing"])
+    assert exit_code == 1
+    assert "fresh full runs only" in caplog.text
+
+
+def test_annotation_enabled_rejects_retry_failed(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level("ERROR", logger="noctilux")
+    _make_image(tmp_path / "images" / "sample.jpg")
+    coco_path = _write_coco(tmp_path)
+    config = _with_annotations(
+        _base_config(tmp_path, transforms=_BC_TRANSFORM),
+        coco_path,
+    )
+    config_path = _write_config(tmp_path, config)
+
+    exit_code = main(["run", "--config", str(config_path), "--retry-failed"])
+    assert exit_code == 1
+    assert "fresh full runs only" in caplog.text
+
+
+def test_annotation_enabled_rejects_parallel(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level("ERROR", logger="noctilux")
+    _make_image(tmp_path / "images" / "sample.jpg")
+    coco_path = _write_coco(tmp_path)
+    config = _with_annotations(
+        _base_config(tmp_path, transforms=_BC_TRANSFORM),
+        coco_path,
+    )
+    config_path = _write_config(tmp_path, config)
+
+    exit_code = main(["run", "--config", str(config_path), "--num-workers", "2"])
+    assert exit_code == 1
+    assert "serial runs only" in caplog.text
+
+
+def test_annotations_disabled_ignores_bad_subfields(tmp_path: Path) -> None:
+    config = _base_config(
+        tmp_path,
+        transforms=[{"name": "brightness_contrast", "params": {"brightness": 1.0, "contrast": 1.0}}],
+    )
+    config["annotations"] = {
+        "enabled": False,
+        "bbox_only": "not_a_bool",
+        "on_unsupported_transform": "invalid_policy",
+    }
+    resolved = resolve_config(config)
+    # Should not raise - disabled annotations bypass sub-field validation
+    validate_config(resolved)
+
+
+def test_annotation_output_path_same_as_input_rejected(tmp_path: Path) -> None:
+    from noctilux.annotations.integration import build_annotation_run_context
+
+    _make_image(tmp_path / "images" / "sample.jpg")
+    coco_path = _write_coco(tmp_path)
+    config = _with_annotations(
+        _base_config(tmp_path, transforms=_BC_TRANSFORM),
+        coco_path,
+    )
+    # Point output to same path as input
+    config["annotations"]["output_path"] = str(coco_path)
+    resolved = resolve_config(config)
+
+    with pytest.raises(Exception, match="must differ from"):
+        build_annotation_run_context(resolved)
+
+
+def test_unsupported_ignore_shows_warning_count(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("WARNING", logger="noctilux")
+    _make_image(tmp_path / "images" / "sample.jpg")
+    coco_path = _write_coco(tmp_path)
+    config = _with_annotations(
+        _base_config(
+            tmp_path,
+            transforms=[{"name": "rotate", "params": {"angle": 15}}],
+        ),
+        coco_path,
+        policy="ignore",
+    )
+    config_path = _write_config(tmp_path, config)
+
+    exit_code = main(["run", "--config", str(config_path)])
+    output = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "annotation_unsupported_transform_warnings: 1" in output.out
+
+
+def test_unmatched_sample_produces_warning(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("WARNING", logger="noctilux")
+    # Create image but annotation references a different file name
+    _make_image(tmp_path / "images" / "sample.jpg")
+    coco_path = _write_coco(tmp_path, file_name="other_file.jpg")
+    config = _with_annotations(
+        _base_config(tmp_path, transforms=_BC_TRANSFORM),
+        coco_path,
+    )
+    config_path = _write_config(tmp_path, config)
+
+    exit_code = main(["run", "--config", str(config_path)])
+    assert exit_code == 0
+    output = capsys.readouterr()
+    assert "annotation_unmatched_samples: 1" in output.out
+    assert "No annotation record found" in caplog.text
+
+
+def test_image_only_with_resume_still_works(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _make_image(tmp_path / "images" / "sample.jpg")
+    config = _base_config(
+        tmp_path,
+        transforms=[{"name": "brightness_contrast", "params": {"brightness": 1.0, "contrast": 1.0}}],
+    )
+    config_path = _write_config(tmp_path, config)
+
+    exit_code = main(["run", "--config", str(config_path)])
+    assert exit_code == 0
+    capsys.readouterr()
+
+    # Run again with --resume - should not error since annotations are disabled
+    exit_code = main(["run", "--config", str(config_path), "--resume"])
+    assert exit_code == 0

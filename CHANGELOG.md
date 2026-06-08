@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.1
+
+- Added guardrails: annotation IO rejects resume, skip-existing, retry-failed, and parallel execution modes.
+- Added guardrail: annotations.output_path must differ from annotations.input_path.
+- Added unsupported transform warning count and unmatched sample count to run summary output.
+- Added warning log for samples with no matching annotation record.
+- Fixed annotation config validation: annotations.enabled=false now bypasses sub-field validation entirely.
+- Added 10 new integration tests for annotation IO guardrails.
+- Kept image-only behavior and metadata schema unchanged.
+
 ## 0.8.0
 
 - Added experimental opt-in COCO bbox-only annotation IO integration.

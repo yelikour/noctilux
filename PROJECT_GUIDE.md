@@ -1961,6 +1961,21 @@ YAML 调用：
 * output COCO-like annotation JSON writing
 * image-only 默认行为和现有 metadata schema 字段保持兼容
 
+---
+
+### v0.8.1（已完成）
+
+目标：annotation IO guardrails。
+
+已完成：
+
+* 禁止 annotation IO 与 resume / skip-existing / retry-failed 组合使用
+* 禁止 annotation IO 与 parallel execution (num_workers > 1) 组合使用
+* 添加 guardrail: annotations.output_path 必须与 annotations.input_path 不同
+* 添加 unsupported transform warning count 和 unmatched sample count 到 run summary
+* 修复 annotations.enabled=false 时跳过子字段校验
+* image-only 行为和 metadata schema 字段保持不变
+
 仍不支持：
 
 * mask / polygon / keypoint sync
