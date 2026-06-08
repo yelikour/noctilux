@@ -57,14 +57,17 @@ class AugmentPipeline:
             actual_params = resolve_random_params(spec.get("params", {}), run_rng)
             probability = float(spec.get("p", 1.0))
             should_apply = probability >= 1.0 or (probability > 0.0 and run_rng.random() < probability)
+            input_size = list(current_image.size)
             log_entry = {
                 "name": spec["name"],
                 "backend": spec.get("backend", "pillow"),
                 "p": probability,
                 "applied": should_apply,
                 "params": actual_params,
+                "input_size": input_size,
             }
             if not should_apply:
+                log_entry["output_size"] = input_size
                 transform_logs.append(log_entry)
                 continue
 
@@ -96,6 +99,7 @@ class AugmentPipeline:
                 raise TypeError(
                     f"Transform '{spec['name']}' returned {type(current_image)!r}, expected PIL.Image.Image."
                 )
+            log_entry["output_size"] = list(current_image.size)
             transform_logs.append(log_entry)
 
         return current_image, transform_logs, run_seed

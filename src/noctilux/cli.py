@@ -8,6 +8,7 @@ from typing import Any
 
 from tqdm import tqdm
 
+from noctilux.annotations.integration import build_annotation_run_context
 from noctilux.config import load_config, resolve_config, validate_config
 from noctilux.image_io.loader import describe_image, load_image
 from noctilux.metadata import MetadataWriter
@@ -176,6 +177,7 @@ def run_command(args: argparse.Namespace) -> int:
         else:
             raise
     pipelines = build_pipelines(config)
+    annotation_context = build_annotation_run_context(config)
 
     num_workers = config["runtime"].get("num_workers", 1)
 
@@ -186,6 +188,8 @@ def run_command(args: argparse.Namespace) -> int:
         print("success_count: 0")
         print("failed_count: 0")
         print(f"metadata_path: {Path(config['output']['root']) / config['output']['metadata_dir']}")
+        if annotation_context is not None:
+            print(f"annotation_output_path: {annotation_context.output_path}")
         LOGGER.info(
             "Dry run complete. samples=%d pipelines=%d planned_outputs=%d",
             len(samples),
@@ -203,6 +207,7 @@ def run_command(args: argparse.Namespace) -> int:
             do_resume=do_resume,
             do_skip_existing=do_skip_existing,
             do_retry_failed=do_retry_failed,
+            annotation_context=annotation_context,
         )
 
     return _run_serial(
@@ -212,6 +217,7 @@ def run_command(args: argparse.Namespace) -> int:
         do_resume=do_resume,
         do_skip_existing=do_skip_existing,
         do_retry_failed=do_retry_failed,
+        annotation_context=annotation_context,
     )
 
 
@@ -222,6 +228,7 @@ def _run_serial(
     do_resume: bool,
     do_skip_existing: bool,
     do_retry_failed: bool,
+    annotation_context: Any | None = None,
 ) -> int:
     saver = OutputSaver(config["output"])
     saver.prepare_directories()
@@ -322,6 +329,39 @@ def _run_serial(
                 try:
                     if output_path is None:
                         output_path = saver.build_output_path(sample, pipeline.name, repeat_index)
+                except Exception as exc:
+                    _record_failure(
+                        writer=writer,
+                        sample=sample,
+                        pipeline_name=pipeline.name,
+                        repeat_index=repeat_index,
+                        seed=run_seed,
+                        input_info=input_info,
+                        transforms=transform_log,
+                        stage="save_image",
+                        error=str(exc),
+                    )
+                    if config["runtime"]["fail_fast"] or not config["runtime"]["skip_broken_images"]:
+                        writer.close()
+                        raise
+                    continue
+
+                pending_annotation_record = None
+                if annotation_context is not None:
+                    try:
+                        pending_annotation_record = annotation_context.build_output_record(
+                            sample=sample,
+                            pipeline_name=pipeline.name,
+                            repeat_index=repeat_index,
+                            output_path=output_path,
+                            transforms=transform_log,
+                            input_info=input_info,
+                        )
+                    except Exception:
+                        writer.close()
+                        raise
+
+                try:
                     saver.save(output_image, output_path)
                     output_info = describe_image(
                         output_image,
@@ -343,6 +383,9 @@ def _run_serial(
                         writer.close()
                         raise
                     continue
+
+                if annotation_context is not None:
+                    annotation_context.add_output_record(pending_annotation_record)
 
                 writer.write_success(
                     manifest_row=_build_manifest_record(
@@ -371,6 +414,9 @@ def _run_serial(
                 )
 
     writer.close()
+    annotation_output_path = None
+    if annotation_context is not None:
+        annotation_output_path = annotation_context.write()
     print(f"total_samples: {len(samples)}")
     print(f"total_outputs: {writer.total_count}")
     print(f"success_count: {writer.success_count}")
@@ -381,6 +427,8 @@ def _run_serial(
     print(f"retry_failed_enabled: {do_retry_failed}")
     print("num_workers: 1")
     print(f"metadata_path: {saver.metadata_root}")
+    if annotation_output_path is not None:
+        print(f"annotation_output_path: {annotation_output_path}")
     LOGGER.info("Completed serial run. metadata=%s", saver.metadata_root)
     return 0
 
@@ -393,6 +441,7 @@ def _run_parallel(
     do_resume: bool,
     do_skip_existing: bool,
     do_retry_failed: bool,
+    annotation_context: Any | None = None,
     mp_context: Any | None = None,
     max_in_flight: int | None = None,
 ) -> int:
@@ -513,12 +562,16 @@ def _run_parallel(
                         sample_by_id=sample_by_id,
                         fail_fast=fail_fast,
                         skip_broken_images=skip_broken_images,
+                        annotation_context=annotation_context,
                     )
             finally:
                 if progress is not None:
                     progress.close()
     finally:
         writer.close()
+    annotation_output_path = None
+    if annotation_context is not None:
+        annotation_output_path = annotation_context.write()
     print(f"total_samples: {len(samples)}")
     print(f"total_outputs: {writer.total_count}")
     print(f"success_count: {writer.success_count}")
@@ -529,6 +582,8 @@ def _run_parallel(
     print(f"retry_failed_enabled: {do_retry_failed}")
     print(f"num_workers: {num_workers}")
     print(f"metadata_path: {saver.metadata_root}")
+    if annotation_output_path is not None:
+        print(f"annotation_output_path: {annotation_output_path}")
     LOGGER.info("Completed parallel run. metadata=%s", saver.metadata_root)
     return 0
 
@@ -599,10 +654,23 @@ def _write_parallel_result(
     sample_by_id: dict[str, dict[str, Any]],
     fail_fast: bool,
     skip_broken_images: bool,
+    annotation_context: Any | None = None,
 ) -> None:
     sample = sample_by_id.get(result.sample_id, {"sample_id": result.sample_id, "image_path": "", "metadata": {}})
 
     if result.success:
+        pending_annotation_record = None
+        if annotation_context is not None:
+            pending_annotation_record = annotation_context.build_output_record(
+                sample=sample,
+                pipeline_name=result.pipeline_name,
+                repeat_index=result.repeat_index,
+                output_path=result.output_path,
+                transforms=result.transform_log,
+                input_info=result.input_info,
+            )
+            annotation_context.add_output_record(pending_annotation_record)
+
         writer.write_success(
             manifest_row=_build_manifest_record(
                 sample=sample,

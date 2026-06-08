@@ -166,6 +166,70 @@ def test_coco_writer_duplicate_explicit_annotation_id_raises() -> None:
         writer.to_string(records)
 
 
+def test_coco_writer_duplicate_string_annotation_id_raises() -> None:
+    records = {
+        1: AnnotationRecord(
+            image_id=1,
+            width=100,
+            height=100,
+            boxes=[
+                BoundingBox(x=0, y=0, width=10, height=10, category_id=1, annotation_id="ann-1"),
+            ],
+        ),
+        2: AnnotationRecord(
+            image_id=2,
+            width=100,
+            height=100,
+            boxes=[
+                BoundingBox(x=0, y=0, width=10, height=10, category_id=1, annotation_id="ann-1"),
+            ],
+        ),
+    }
+    writer = CocoAnnotationWriter()
+
+    with pytest.raises(ValueError, match="[Dd]uplicate annotation_id"):
+        writer.to_string(records)
+
+
+def test_coco_writer_preserves_zero_annotation_id() -> None:
+    records = {
+        1: AnnotationRecord(
+            image_id=1,
+            width=100,
+            height=100,
+            boxes=[
+                BoundingBox(x=0, y=0, width=10, height=10, category_id=1, annotation_id=0),
+                BoundingBox(x=20, y=20, width=10, height=10, category_id=2),
+            ],
+        ),
+    }
+    writer = CocoAnnotationWriter()
+    payload = json.loads(writer.to_string(records))
+
+    ids = [ann["id"] for ann in payload["annotations"]]
+    assert 0 in ids
+    assert len(ids) == len(set(ids))
+
+
+def test_coco_writer_auto_id_skips_explicit_int_id() -> None:
+    records = {
+        1: AnnotationRecord(
+            image_id=1,
+            width=100,
+            height=100,
+            boxes=[
+                BoundingBox(x=0, y=0, width=10, height=10, category_id=1, annotation_id=1),
+                BoundingBox(x=20, y=20, width=10, height=10, category_id=2),
+            ],
+        ),
+    }
+    writer = CocoAnnotationWriter()
+    payload = json.loads(writer.to_string(records))
+
+    ids = [ann["id"] for ann in payload["annotations"]]
+    assert ids == [1, 2]
+
+
 def test_coco_writer_multi_image_ids_globally_unique() -> None:
     records = {
         1: AnnotationRecord(

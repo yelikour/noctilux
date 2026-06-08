@@ -4,11 +4,11 @@ This document describes the planned annotation synchronization architecture for 
 
 ## Current State
 
-Noctilux v0.7.5 still processes image-level augmentation only. During `noctilux run`, transforms like resize, crop, or flip do not update object detection bounding boxes, segmentation masks, or keypoint coordinates. This is the correct behavior for image classification, where annotations are simple labels unaffected by geometric transforms.
+Noctilux v0.8.0 adds experimental, opt-in COCO-like bbox-only annotation IO integration. When `annotations.enabled` is absent or false, `noctilux run` remains image-only and keeps the existing metadata schema.
 
-v0.7.5 cleans up the annotation writer prototypes from v0.7.4: annotation IDs are now globally unique, standalone mask annotations without category linkage are no longer emitted, and the YOLO writer has optional bounds validation. Writers are not wired into `noctilux run`, do not change pipeline or metadata behavior, and annotation sync is not yet supported.
+v0.8.0 supports bbox sync only for `resize_exact`, `resize_long_edge`, `horizontal_flip`, and `vertical_flip`. Photometric transforms leave bboxes unchanged. Unsupported geometry transforms fail by default or log a warning when `annotations.on_unsupported_transform: ignore` is configured.
 
-Image-only behavior remains unchanged and will remain the default. Annotation synchronization is a future opt-in feature for task-aware pipelines.
+This is not full annotation sync. Mask, polygon, keypoint, rotate, crop integration, YOLO dataset-level integration, and full COCO feature parity remain deferred.
 
 ## v0.7.1 Prototype Status
 
@@ -267,7 +267,19 @@ pipelines:
             max: 0.1
 ```
 
-When `annotations` is absent or `annotations.enabled` is `false`, the pipeline runs in image-only mode with zero overhead.
+v0.8.0 uses the concrete minimal schema below:
+
+```yaml
+annotations:
+  enabled: true
+  format: coco
+  input_path: annotations/instances.json
+  output_path: outputs/run/annotations/annotations.json  # optional
+  bbox_only: true
+  on_unsupported_transform: error  # error | ignore
+```
+
+When `annotations` is absent or `annotations.enabled` is `false`, the pipeline runs in image-only mode.
 
 ## Output Design
 
@@ -278,9 +290,7 @@ output_root/
 │       ├── img001__pipeline__000.jpg
 │       └── img002__pipeline__000.jpg
 ├── annotations/
-│   └── pipeline_name/
-│       ├── img001__pipeline__000.json   # per-image annotation
-│       └── img002__pipeline__000.json
+│   └── annotations.json
 ├── metadata/
 │   ├── manifest.csv
 │   ├── transform_log.jsonl
@@ -288,11 +298,11 @@ output_root/
 │   └── summary.csv
 ```
 
-Key rules:
-- Output annotations are stored per-image alongside output images.
-- The annotation output format matches the input format unless overridden.
-- `manifest.csv` gains optional columns: `annotation_input_path`, `annotation_output_path`.
-- `transform_log.jsonl` gains an `annotations` field recording the annotation transform log.
+Key rules for v0.8.0:
+- Output annotations are written as one COCO-like bbox-only JSON file.
+- `annotations.output_path` can override the default `output.root/annotations/annotations.json`.
+- Existing metadata schema fields are unchanged; annotation output path may be printed in the CLI summary.
+- Segmentation payloads can remain in parser/raw records, but run integration strips masks and writes bbox-only output.
 
 ## Error Handling
 
@@ -326,27 +336,29 @@ annotations:
 
 ## Test Strategy
 
-### Unit Tests
+### v0.8.0 Unit Tests
 
-- Each geometry transform with annotation support: resize bbox, flip bbox, crop bbox with clipping, rotate bbox.
-- Photometric transforms do not change annotation coordinates.
-- Annotation passthrough when no `annotations` config is present.
-- Invalid bbox handling (zero area, negative dimensions).
-- Crop bbox elimination and partial clipping.
-- Keypoint coordinate transformation.
+- Annotation schema, COCO/YOLO parser prototypes, COCO/YOLO writer prototypes, and bbox geometry helpers remain covered independently.
+- COCO writer rejects duplicate explicit `annotation_id` values for both int and string IDs.
+- Existing bbox resize, flip, and crop primitives keep their standalone tests.
 
-### Integration Tests
+### v0.8.0 Integration Tests
 
-- Full pipeline with annotation sync: input COCO JSON, output per-image annotation files.
-- Round-trip: original annotations and synced annotations are consistent with the transformed image dimensions.
-- Manifest includes `annotation_input_path` and `annotation_output_path` columns.
-- Transform log includes annotation transform details.
+- Image-only run works when `annotations` is absent.
+- `annotations.enabled: false` behaves like image-only mode.
+- `annotations.enabled: true` with `format: coco` reads a minimal COCO-like annotation file.
+- `resize_exact`, `resize_long_edge`, `horizontal_flip`, and `vertical_flip` sync bbox coordinates.
+- Photometric transforms leave bbox coordinates unchanged.
+- Unsupported transforms fail with `on_unsupported_transform: error` and continue with a warning under `ignore`.
+- Output COCO-like JSON exists, is bbox-only, has globally unique annotation IDs, and does not emit mask-only negative categories.
+- Existing metadata schema fields remain unchanged.
 
-### Compatibility Tests
+### Future Tests
 
-- Image-only pipeline output is identical with and without the annotation sync module present.
-- Existing metadata schema fields are unchanged.
-- New annotation columns are optional and absent in image-only runs.
+- Crop integration once transform logs expose exact crop windows.
+- Rotate bbox sync after canvas and clipping semantics are defined.
+- Mask, polygon, and keypoint synchronization after those features are explicitly implemented.
+- YOLO dataset-level and VOC integration when added.
 
 ## Implementation Phases
 
@@ -400,13 +412,17 @@ annotations:
 - Writers remain standalone prototypes, not wired into `noctilux run` or CLI.
 - Image-only behavior unchanged.
 
-### v0.8.0 — COCO and YOLO Minimal Sync Support
+### v0.8.0 — Minimal Annotation IO Integration (completed)
 
-- Harden COCO/YOLO readers and add annotation writers.
-- Add VOC XML parser (read-only for initial support).
-- Integration with `noctilux run` CLI for annotation-aware configs.
-- End-to-end tests with real annotation formats.
-- Documentation and examples.
+- Added experimental opt-in annotation config under `annotations`.
+- Wired COCO-like bbox-only input/output into `noctilux run`.
+- Added bbox sync for `resize_exact`, `resize_long_edge`, `horizontal_flip`, and `vertical_flip` using existing geometry helpers.
+- Photometric transforms pass annotations through unchanged.
+- Unsupported transforms use `annotations.on_unsupported_transform`: `error` fails clearly, `ignore` logs a warning and skips annotation update for that transform.
+- Output is one COCO-like bbox-only JSON file; masks, polygons, keypoints, and mask-only annotations are not written by run integration.
+- Crop integration is deferred because current transform logs do not expose a reliable crop window.
+- Rotate bbox sync, YOLO dataset-level integration, VOC, and full COCO feature parity remain out of scope.
+- Image-only behavior and existing metadata schema fields remain unchanged.
 
 ## Out of Scope
 

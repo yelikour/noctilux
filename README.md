@@ -3,7 +3,7 @@
 [![CI](https://github.com/yelikour/noctilux/actions/workflows/ci.yml/badge.svg)](https://github.com/yelikour/noctilux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.7.5-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.8.0-orange.svg)](CHANGELOG.md)
 
 **Noctilux** is a general-purpose offline image batch processing and augmentation toolkit. It uses YAML configs to define reproducible, traceable image processing pipelines for pre-training data preparation.
 
@@ -19,16 +19,17 @@ Noctilux 是一个通用的离线图像批处理与增强工具。它面向训�
 - 27 registered transforms across 7 categories
 - Full metadata traceability: manifest.csv, transform_log.jsonl, failed_images.csv, summary.csv
 - Parallel hardening in v0.6.0: bounded task submission, clearer worker exception handling, spawn smoke coverage
+- Experimental opt-in COCO bbox-only annotation IO in v0.8.0
 
 ## Current Status
 
-- Version: `0.7.5`
+- Version: `0.8.0`
 - Execution: serial by default; experimental hardening-stage parallel mode with `--num-workers N` when N > 1
 - Default backend: Pillow + NumPy
 - Optional backend: OpenCV via `noctilux[opencv]` (CI-tested on Python 3.12)
-- Annotation prototype: internal schema, prototype COCO/YOLO readers and writers, and bbox resize/flip/crop geometry helpers in `noctilux.annotations`; not wired into `noctilux run`.
+- Annotation IO: experimental and opt-in. v0.8.0 supports minimal COCO-like bbox-only input/output wired into `noctilux run` for selected transforms.
 - Python: 3.10, 3.11, 3.12 (CI-tested)
-- Not yet supported: stable parallel processing, annotation sync, PyPI release
+- Not yet supported: stable parallel processing, full annotation sync, mask/polygon/keypoint/rotate/crop annotation sync, PyPI release
 
 ## 安装
 
@@ -145,6 +146,21 @@ transforms:
 ```
 
 OpenCV backend currently supports: `resize_exact`, `resize_long_edge`, `gaussian_blur`, `rotate`. All other transforms use Pillow regardless of the backend setting. See [docs/backend_design.md](docs/backend_design.md) for details.
+
+## Experimental Annotation IO
+
+v0.8.0 adds opt-in COCO-like bbox-only annotation IO. It is experimental and is not full annotation sync. Image-only configs do not need an `annotations` section and keep the same default behavior.
+
+```yaml
+annotations:
+  enabled: true
+  format: coco
+  input_path: annotations/instances.json
+  bbox_only: true
+  on_unsupported_transform: error
+```
+
+Supported bbox sync in `noctilux run`: `resize_exact`, `resize_long_edge`, `horizontal_flip`, `vertical_flip`. Photometric transforms leave bboxes unchanged. Crop, rotate, mask, polygon, keypoint, and YOLO dataset-level integration are deferred.
 
 ## 配置示例与 Presets
 
@@ -383,11 +399,12 @@ See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for the full roadmap. Planned milestone
 - v0.7.2: bbox sync primitives for resize / horizontal flip / vertical flip
 - v0.7.3: bbox crop handling primitives (internal only; annotation sync not yet supported in `noctilux run`)
 - v0.7.4: annotation writer prototype — COCO JSON and YOLO TXT writers (internal only; not wired into `noctilux run`)
-- v0.7.5: annotation writer cleanup — unique annotation IDs, no standalone mask annotations, optional YOLO bounds validation (internal only; not wired into `noctilux run`)
+- v0.7.5: annotation writer cleanup — unique annotation IDs, no standalone mask annotations, optional YOLO bounds validation
+- v0.8.0: experimental opt-in COCO bbox-only annotation IO integration for selected transforms
 
 ## 当前限制
 
 - `num_workers` 启用 `ProcessPoolExecutor` 并行执行（实验性 / hardening-stage，v0.6.0）。默认 1 为串行模式。
 - OpenCV backend 仅支持 4 个 transform，其余仍使用 Pillow。
-- 尚未正式支持 detection / segmentation annotation 同步增强；v0.7.5 只增加内部 annotation writer cleanup，未接入 `noctilux run`。
+- Annotation IO 仍是实验性 opt-in；v0.8.0 只支持 COCO bbox-only minimal integration，不支持 mask / polygon / keypoint / rotate / crop annotation sync。
 - `preview` 只做视觉检查，不会生成 `manifest.csv`、`transform_log.jsonl` 或其他批处理 metadata。

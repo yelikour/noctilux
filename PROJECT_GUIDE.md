@@ -1921,7 +1921,7 @@ YAML 调用：
 
 ---
 
-### v0.7.x（进行中）
+### v0.7.x（已完成）
 
 目标：annotation 同步设计。
 
@@ -1947,17 +1947,28 @@ YAML 调用：
 
 ---
 
-### v0.8.0（计划中）
+### v0.8.0（已完成）
 
-目标：COCO / YOLO minimal support。
+目标：minimal annotation IO integration。
 
-计划：
+已完成：
 
-* COCO JSON full read/write
-* YOLO TXT read/write（normalized coordinates）
-* VOC XML read-only
-* CLI integration for annotation-aware configs
-* documentation and examples
+* experimental opt-in `annotations` config
+* COCO-like bbox-only input/output wired into `noctilux run`
+* bbox sync for `resize_exact`, `resize_long_edge`, `horizontal_flip`, `vertical_flip`
+* photometric transforms keep bbox unchanged
+* unsupported transform policy: `error` / `ignore`
+* output COCO-like annotation JSON writing
+* image-only 默认行为和现有 metadata schema 字段保持兼容
+
+仍不支持：
+
+* mask / polygon / keypoint sync
+* rotate bbox sync
+* crop integration（当前 transform log 未暴露可靠 crop window）
+* full COCO feature parity
+* YOLO dataset-level integration
+* VOC XML integration
 
 ---
 

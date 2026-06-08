@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0
+
+- Added experimental opt-in COCO bbox-only annotation IO integration.
+- Added bbox sync for selected supported transforms.
+- Added annotation output writing.
+- Kept image-only run behavior unchanged.
+- Kept annotation integration experimental.
+
 ## 0.7.5
 
 - Fixed COCO writer annotation_id uniqueness across records.

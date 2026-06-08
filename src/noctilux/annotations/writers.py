@@ -29,8 +29,11 @@ class CocoAnnotationWriter(BaseAnnotationWriter):
     Duplicate explicit annotation IDs across records raise ValueError.
 
     Standalone mask annotations without a linked category_id are not emitted.
-    Segmentation payloads from MaskRef are only attached when they can be
-    associated with an existing bbox annotation.
+    Segmentation attachment is prototype-only and position-based: MaskRef
+    payloads are matched to bbox annotations by their list index.
+
+    Minimal v0.8.0 run integration uses bbox-only output and does not attempt
+    to synchronize or attach segmentation payloads.
     """
 
     def write(self, records: Any, output: str | Path) -> None:
@@ -47,10 +50,10 @@ class CocoAnnotationWriter(BaseAnnotationWriter):
     def _build_coco_payload(self, records: dict[int | str, AnnotationRecord]) -> dict[str, Any]:
         images: list[dict[str, Any]] = []
         annotations: list[dict[str, Any]] = []
-        categories: dict[int, dict[str, Any]] = {}
+        categories = _collect_known_categories(records)
 
-        explicit_ids = _collect_explicit_ids(records)
-        next_auto_id = max(explicit_ids) + 1 if explicit_ids else 1
+        explicit_int_ids = _collect_explicit_ids(records)
+        next_auto_id = max(explicit_int_ids) + 1 if explicit_int_ids else 1
 
         # Build index: image_id -> list of mask segmentations
         mask_index = _build_mask_index(records)
@@ -155,16 +158,35 @@ class YoloAnnotationWriter(BaseAnnotationWriter):
 
 
 def _collect_explicit_ids(records: dict[int | str, AnnotationRecord]) -> set[int]:
-    seen: set[int] = set()
+    seen: set[int | str] = set()
+    int_ids: set[int] = set()
     for record in records.values():
         for box in record.boxes:
             if box.annotation_id is not None:
                 aid = box.annotation_id
-                if isinstance(aid, int) and aid in seen:
+                if not isinstance(aid, int | str):
+                    raise ValueError(f"annotation_id must be int, str, or None, got {type(aid).__name__}.")
+                if aid in seen:
                     raise ValueError(f"Duplicate annotation_id {aid} found across records.")
+                seen.add(aid)
                 if isinstance(aid, int):
-                    seen.add(aid)
-    return seen
+                    int_ids.add(aid)
+    return int_ids
+
+
+def _collect_known_categories(records: dict[int | str, AnnotationRecord]) -> dict[int, dict[str, Any]]:
+    categories: dict[int, dict[str, Any]] = {}
+    for record in records.values():
+        raw_categories = (record.raw or {}).get("categories")
+        if not isinstance(raw_categories, list):
+            continue
+        for category in raw_categories:
+            if not isinstance(category, dict):
+                continue
+            category_id = category.get("id")
+            if isinstance(category_id, int) and category_id not in categories:
+                categories[category_id] = dict(category)
+    return categories
 
 
 def _build_mask_index(records: dict[int | str, AnnotationRecord]) -> dict[int | str, list[Any]]:

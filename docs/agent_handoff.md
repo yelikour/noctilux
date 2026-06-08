@@ -23,8 +23,8 @@ CLI commands:
 
 Internal annotation status:
 
-- `noctilux.annotations` contains schema dataclasses, prototype COCO/YOLO readers, and bbox resize/flip/crop geometry helpers.
-- Annotation parsing and geometry helpers are not wired into `noctilux run`; current execution and metadata remain image-only.
+- `noctilux.annotations` contains schema dataclasses, prototype COCO/YOLO readers and writers, bbox resize/flip/crop geometry helpers, and minimal run integration helpers.
+- v0.8.0 wires experimental opt-in COCO bbox-only annotation IO into `noctilux run` for selected transforms. Image-only configs remain the default and existing metadata schema fields remain unchanged.
 
 Current transform categories:
 
@@ -48,7 +48,7 @@ Metadata output structure from `noctilux run`:
 ## Directory Map
 
 - `src/noctilux/`: package source, CLI, config loading, scanning, pipeline execution, saving, metadata, preview, report, and worker logic.
-- `src/noctilux/annotations/`: internal annotation schema, read-only parser prototypes, and bbox resize/flip/crop helpers; not connected to run.
+- `src/noctilux/annotations/`: annotation schema, parser/writer prototypes, bbox geometry helpers, and v0.8.0 minimal COCO bbox-only run integration.
 - `src/noctilux/transforms/`: registered transform implementations grouped by domain.
 - `configs/examples/`: runnable example configs, including `quickstart_sample.yaml`.
 - `configs/presets/`: reusable preset pipeline configs for common offline augmentation workflows.
@@ -90,6 +90,7 @@ Metadata output structure from `noctilux run`:
 - `v0.7.3`: bbox crop handling primitives — standalone clipping, crop-relative translation, and `min_area` filtering. Not wired into `noctilux run`; rotate, mask, polygon, and keypoint sync remain unimplemented.
 - `v0.7.4`: annotation writer prototype — `CocoAnnotationWriter` and `YoloAnnotationWriter` in `src/noctilux/annotations/writers.py`. Writers exist but are not wired into `noctilux run`; image-only behavior unchanged.
 - `v0.7.5`: annotation writer cleanup — globally unique annotation IDs, no standalone mask annotations without category linkage, optional YOLO bounds validation. Writers remain prototype and are not wired into `noctilux run`.
+- `v0.8.0`: minimal annotation IO integration — experimental opt-in COCO bbox-only input/output in `noctilux run`, bbox sync for resize_exact, resize_long_edge, horizontal_flip, and vertical_flip. Image-only behavior and metadata schema fields unchanged.
 
 Important tag state:
 
@@ -122,6 +123,7 @@ Important tag state:
 - After changes, run pytest and ruff before declaring completion.
 - Keep dependencies minimal; do not add OpenCV, Albumentations, AugLy, or imagecorruptions unless the user explicitly asks for a scoped backend change.
 - Do not implement parallel execution without first completing the metadata-safe writer refactor (v0.5.1). See `docs/parallel_resume_design.md` for phased plan. Parallel execution is available as experimental / hardening-stage (v0.5.3+). Changes to worker/result/metadata paths must be made cautiously and must run `tests/test_parallel.py` plus resume and smoke checks.
+- Annotation integration is experimental. Changes to `run`, `pipeline`, transform logs, or annotation geometry must run `tests/test_annotation_integration.py` plus the annotation parser/geometry/writer tests.
 
 ## Standard Validation Commands
 
@@ -129,6 +131,7 @@ Important tag state:
 pip install -e ".[dev]"
 python -m pytest
 ruff check src tests scripts
+python -m pytest tests/test_annotations.py tests/test_annotation_geometry.py tests/test_annotation_writers.py tests/test_annotation_integration.py
 noctilux --help
 noctilux list-transforms
 noctilux preview --help
@@ -164,8 +167,8 @@ noctilux report \
 - `v0.4.x`: broader backend coverage.
 - `v0.5.0`: parallel execution and resume support.
 - `v0.6.0`: parallel hardening completed; parallel still not declared stable.
-- `v0.7.x`: annotation synchronization design and prototypes. v0.7.5 cleans up writer prototypes (unique IDs, no standalone masks, optional bounds validation), but annotation support is not wired into `noctilux run`.
-- `v0.8.0`: detection and segmentation annotation synchronization.
+- `v0.7.x`: annotation synchronization design and prototypes, completed through writer cleanup.
+- `v0.8.0`: experimental opt-in COCO bbox-only annotation IO integration; full detection/segmentation sync remains future work.
 - Adjust the roadmap when the user gives a more specific task.
 
 ## New Agent Onboarding Flow

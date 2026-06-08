@@ -44,10 +44,20 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "show_progress": True,
         "dry_run": False,
     },
+    "annotations": {
+        "enabled": False,
+        "format": "coco",
+        "input_path": None,
+        "output_path": None,
+        "bbox_only": True,
+        "on_unsupported_transform": "error",
+    },
 }
 
 VALID_INPUT_MODES = {"folder", "manifest"}
 VALID_SAVE_FORMATS = {"jpg", "jpeg", "png", "webp"}
+VALID_ANNOTATION_FORMATS = {"coco"}
+VALID_ANNOTATION_UNSUPPORTED_POLICIES = {"error", "ignore"}
 
 
 def load_config(path: str | Path) -> dict[str, Any]:
@@ -129,6 +139,8 @@ def validate_config(config: dict[str, Any]) -> None:
         if not isinstance(runtime_cfg.get(field), bool):
             raise ValueError(f"runtime.{field} must be a boolean.")
 
+    _validate_annotations_config(config.get("annotations", {}))
+
     pipelines = config["pipelines"]
     if not isinstance(pipelines, list) or not pipelines:
         raise ValueError("pipelines must be a non-empty list.")
@@ -178,7 +190,7 @@ def resolve_config(config: dict[str, Any]) -> dict[str, Any]:
     raw = deepcopy(config)
     resolved = deepcopy(DEFAULT_CONFIG)
 
-    for section in ("project", "input", "output", "runtime"):
+    for section in ("project", "input", "output", "runtime", "annotations"):
         section_data = raw.pop(section, {})
         if section_data is None:
             section_data = {}
@@ -205,7 +217,51 @@ def resolve_config(config: dict[str, Any]) -> dict[str, Any]:
 
     output_cfg["root"] = Path(output_cfg["root"]).expanduser()
 
+    annotations_cfg = resolved["annotations"]
+    if annotations_cfg.get("input_path") is not None:
+        annotations_cfg["input_path"] = Path(annotations_cfg["input_path"]).expanduser()
+    if annotations_cfg.get("output_path") is not None:
+        annotations_cfg["output_path"] = Path(annotations_cfg["output_path"]).expanduser()
+
     return resolved
+
+
+def _validate_annotations_config(annotations_cfg: Any) -> None:
+    if not isinstance(annotations_cfg, dict):
+        raise ValueError("Config section 'annotations' must be a mapping.")
+
+    enabled = annotations_cfg.get("enabled", False)
+    if not isinstance(enabled, bool):
+        raise ValueError("annotations.enabled must be a boolean.")
+
+    bbox_only = annotations_cfg.get("bbox_only", True)
+    if not isinstance(bbox_only, bool):
+        raise ValueError("annotations.bbox_only must be a boolean.")
+
+    on_unsupported = annotations_cfg.get("on_unsupported_transform", "error")
+    if on_unsupported not in VALID_ANNOTATION_UNSUPPORTED_POLICIES:
+        raise ValueError(
+            "annotations.on_unsupported_transform must be one of "
+            f"{sorted(VALID_ANNOTATION_UNSUPPORTED_POLICIES)}."
+        )
+
+    if not enabled:
+        return
+
+    annotation_format = annotations_cfg.get("format", "coco")
+    if annotation_format not in VALID_ANNOTATION_FORMATS:
+        raise ValueError(
+            f"Unsupported annotations.format: {annotation_format!r}. "
+            f"Expected one of {sorted(VALID_ANNOTATION_FORMATS)}."
+        )
+    if not bbox_only:
+        raise ValueError("annotations.bbox_only must be true for v0.8.0 bbox-only integration.")
+
+    input_path = annotations_cfg.get("input_path")
+    if input_path is None:
+        raise ValueError("annotations.input_path is required when annotations.enabled is true.")
+    if not Path(input_path).exists():
+        raise FileNotFoundError(f"annotations.input_path does not exist: {input_path}")
 
 
 def _validate_relative_component(value: Any, field_name: str) -> None:

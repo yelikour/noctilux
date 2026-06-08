@@ -88,7 +88,7 @@ Current status: The repository is now public (as of v0.3.5). This checklist was 
 - Noctilux does not publish to PyPI yet.
 - Distribution is via `git clone` and `pip install -e .`.
 - OpenCV backend is available as an optional dependency (`noctilux[opencv]`). The default quickstart does not require OpenCV.
-- Annotation synchronization for detection/segmentation/keypoint tasks is still not formally supported. v0.7.5 cleans up annotation writer prototypes (unique IDs, no standalone masks, optional bounds validation), but writers are not wired into `noctilux run`; current functionality remains image-only augmentation.
+- Annotation IO is experimental and opt-in. v0.8.0 wires minimal COCO bbox-only input/output into `noctilux run` for selected transforms, but full detection/segmentation/keypoint annotation sync is not formally supported. Image-only workflows remain the default and are unaffected.
 
 ## Known Historical Notes
 
