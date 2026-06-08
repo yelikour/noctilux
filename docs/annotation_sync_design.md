@@ -4,9 +4,9 @@ This document describes the planned annotation synchronization architecture for 
 
 ## Current State
 
-Noctilux v0.7.1 still processes image-level augmentation only. When transforms like resize, crop, or flip are applied, no corresponding updates are made to object detection bounding boxes, segmentation masks, or keypoint coordinates. This is the correct behavior for image classification, where annotations are simple labels unaffected by geometric transforms.
+Noctilux v0.7.2 still processes image-level augmentation only. During `noctilux run`, transforms like resize, crop, or flip do not update object detection bounding boxes, segmentation masks, or keypoint coordinates. This is the correct behavior for image classification, where annotations are simple labels unaffected by geometric transforms.
 
-v0.7.1 adds an internal annotation schema plus read-only COCO-like JSON and single-file YOLO TXT parser prototypes. The parsers are not wired into `noctilux run`, do not write annotations, and do not perform annotation synchronization.
+v0.7.2 adds internal bbox geometry helpers for resize, horizontal flip, and vertical flip on top of the v0.7.1 schema and parser prototypes. These helpers are not wired into `noctilux run`, do not write annotations, and do not change pipeline or metadata behavior.
 
 Image-only behavior remains unchanged and will remain the default. Annotation synchronization is a future opt-in feature for task-aware pipelines.
 
@@ -16,6 +16,13 @@ Image-only behavior remains unchanged and will remain the default. Annotation sy
 - Completed: minimal read-only COCO and YOLO parser prototypes.
 - Not implemented: annotation writers, transform synchronization, config schema, metadata changes, or run integration.
 - The COCO/YOLO readers are prototypes, not complete dataset-format or synchronization support.
+
+## v0.7.2 Geometry Primitive Status
+
+- Completed: immutable bbox resize helpers for boxes and records.
+- Completed: immutable horizontal and vertical bbox flip helpers for boxes and records.
+- Not implemented: crop, rotate, mask/polygon, or keypoint synchronization.
+- Not integrated: `noctilux run`, transforms, CLI, config, writers, and metadata remain unchanged.
 
 ## Why Annotation Sync Matters
 
@@ -140,8 +147,8 @@ The internal `noctilux.annotations` module provides:
 - `MaskRef`: an optional mask path, raw segmentation payload, and optional size.
 - `AnnotationRecord`: one image's dimensions, paths, boxes, masks, keypoints, and optional raw source data.
 
-Each schema dataclass supports a simple `to_dict()` / `from_dict()` round trip. These structures are parser-only in
-v0.7.1. `AnnotationTransformResult` and transform synchronization remain future work.
+Each schema dataclass supports a simple `to_dict()` / `from_dict()` round trip. v0.7.2 uses these structures in
+standalone bbox resize/flip helpers. `AnnotationTransformResult`, transform binding, and run integration remain future work.
 
 ## Pipeline Design
 
@@ -347,13 +354,13 @@ annotations:
 - Did not add annotation writers, transform synchronization, config changes, metadata changes, or CLI integration.
 - Parser prototypes remain separate from `noctilux run`; image-only behavior is unchanged.
 
-### v0.7.2 — Bbox Sync for Resize and Flip
+### v0.7.2 — Bbox Sync Primitives for Resize and Flip (completed)
 
-- Implement `transform_annotations` for `resize_long_edge`, `resize_short_edge`, `resize_exact`, `horizontal_flip`, `vertical_flip`.
-- Integrate annotation sync into the pipeline execution loop.
-- Add config validation for `annotations` section.
-- Add unit and integration tests for bbox sync.
-- Image-only pipelines still unchanged.
+- Added standalone bbox and record helpers for resize, horizontal flip, and vertical flip.
+- Helpers return new objects and preserve annotation metadata fields.
+- Added unit tests for geometry formulas, validation, field preservation, and image-only smoke behavior.
+- Did not implement crop, rotate, mask/polygon, or keypoint synchronization.
+- Did not integrate annotation sync into transforms, pipeline execution, CLI, config, or metadata.
 
 ### v0.7.3 — Crop Bbox Handling
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.2
+
+- Added bbox geometry sync primitives for resize and flip.
+- Added annotation geometry tests.
+- Kept annotation sync separate from image-only run workflow.
+
 ## 0.7.1
 
 - Added annotation schema dataclasses.

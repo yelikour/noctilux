@@ -23,8 +23,8 @@ CLI commands:
 
 Internal annotation status:
 
-- `noctilux.annotations` contains schema dataclasses and prototype COCO/YOLO readers.
-- Annotation parsing is not wired into `noctilux run`; current execution and metadata remain image-only.
+- `noctilux.annotations` contains schema dataclasses, prototype COCO/YOLO readers, and bbox resize/flip geometry helpers.
+- Annotation parsing and geometry helpers are not wired into `noctilux run`; current execution and metadata remain image-only.
 
 Current transform categories:
 
@@ -48,7 +48,7 @@ Metadata output structure from `noctilux run`:
 ## Directory Map
 
 - `src/noctilux/`: package source, CLI, config loading, scanning, pipeline execution, saving, metadata, preview, report, and worker logic.
-- `src/noctilux/annotations/`: internal annotation schema and read-only parser prototypes; not connected to run.
+- `src/noctilux/annotations/`: internal annotation schema, read-only parser prototypes, and bbox resize/flip helpers; not connected to run.
 - `src/noctilux/transforms/`: registered transform implementations grouped by domain.
 - `configs/examples/`: runnable example configs, including `quickstart_sample.yaml`.
 - `configs/presets/`: reusable preset pipeline configs for common offline augmentation workflows.
@@ -86,6 +86,7 @@ Metadata output structure from `noctilux run`:
 - `v0.6.0`: experimental parallel hardening — clearer future exception handling, bounded in-flight submission, spawn smoke coverage, and save-image failure alignment. Parallel remains hardening-stage, not stable.
 - `v0.7.0`: annotation synchronization design only — `docs/annotation_sync_design.md`. No code changes. Image-only behavior unchanged. Future annotation implementation must not break existing metadata schema.
 - `v0.7.1`: annotation schema/parser prototype — internal dataclasses and read-only COCO/YOLO parsers. Not wired into `noctilux run`; image-only behavior and metadata schema unchanged.
+- `v0.7.2`: bbox geometry sync primitives — standalone resize/horizontal-flip/vertical-flip helpers. Not wired into `noctilux run`; crop, rotate, mask, and keypoint sync remain unimplemented.
 
 Important tag state:
 
@@ -160,7 +161,7 @@ noctilux report \
 - `v0.4.x`: broader backend coverage.
 - `v0.5.0`: parallel execution and resume support.
 - `v0.6.0`: parallel hardening completed; parallel still not declared stable.
-- `v0.7.x`: annotation synchronization design and prototypes. v0.7.1 adds internal parser prototypes, but they are not wired into `noctilux run`.
+- `v0.7.x`: annotation synchronization design and prototypes. v0.7.2 adds internal bbox resize/flip helpers, but annotation support is not wired into `noctilux run`.
 - `v0.8.0`: detection and segmentation annotation synchronization.
 - Adjust the roadmap when the user gives a more specific task.
 
