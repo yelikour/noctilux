@@ -1934,6 +1934,7 @@ YAML 调用：
 * v0.7.2：bbox sync for resize / flip
 * v0.7.3：crop bbox handling（clipping, elimination, min_area）
 * v0.7.4：annotation writer prototype（COCO JSON writer, YOLO TXT writer；未接入 `noctilux run`）
+* v0.7.5：annotation writer cleanup（全局唯一 annotation_id，无独立 mask annotation，可选 YOLO bounds 校验；未接入 `noctilux run`）
 
 原则：
 

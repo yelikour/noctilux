@@ -24,6 +24,13 @@ class CocoAnnotationWriter(BaseAnnotationWriter):
     dict with ``images``, ``annotations``, and ``categories`` fields.
 
     This writer assumes bboxes are already valid and within image bounds.
+    Annotation IDs are globally unique: explicit IDs are preserved, and
+    auto-generated IDs start above the maximum explicit ID to avoid collisions.
+    Duplicate explicit annotation IDs across records raise ValueError.
+
+    Standalone mask annotations without a linked category_id are not emitted.
+    Segmentation payloads from MaskRef are only attached when they can be
+    associated with an existing bbox annotation.
     """
 
     def write(self, records: Any, output: str | Path) -> None:
@@ -42,7 +49,11 @@ class CocoAnnotationWriter(BaseAnnotationWriter):
         annotations: list[dict[str, Any]] = []
         categories: dict[int, dict[str, Any]] = {}
 
-        annotation_counter = 0
+        explicit_ids = _collect_explicit_ids(records)
+        next_auto_id = max(explicit_ids) + 1 if explicit_ids else 1
+
+        # Build index: image_id -> list of mask segmentations
+        mask_index = _build_mask_index(records)
 
         for image_id, record in records.items():
             image_entry: dict[str, Any] = {"id": image_id}
@@ -54,9 +65,11 @@ class CocoAnnotationWriter(BaseAnnotationWriter):
                 image_entry["height"] = record.height
             images.append(image_entry)
 
-            for box in record.boxes:
-                annotation_counter += 1
-                ann_id = box.annotation_id if box.annotation_id is not None else annotation_counter
+            for box_idx, box in enumerate(record.boxes):
+                ann_id = box.annotation_id if box.annotation_id is not None else next_auto_id
+                if box.annotation_id is None:
+                    next_auto_id += 1
+
                 annotation_entry: dict[str, Any] = {
                     "id": ann_id,
                     "image_id": image_id,
@@ -68,21 +81,15 @@ class CocoAnnotationWriter(BaseAnnotationWriter):
                     annotation_entry["iscrowd"] = box.iscrowd
 
                 _collect_category(categories, box.category_id)
-                annotations.append(annotation_entry)
 
-            for mask in record.masks:
-                if mask.segmentation is not None:
-                    annotation_counter += 1
-                    mask_entry: dict[str, Any] = {
-                        "id": annotation_counter,
-                        "image_id": image_id,
-                        "category_id": -1,
-                        "segmentation": mask.segmentation,
-                        "iscrowd": 0,
-                    }
-                    if mask.size is not None:
-                        mask_entry["size"] = mask.size
-                    annotations.append(mask_entry)
+                # Attach segmentation from corresponding mask if available
+                segs = mask_index.get(image_id, [])
+                if box_idx < len(segs) and segs[box_idx] is not None:
+                    annotation_entry["segmentation"] = segs[box_idx]
+                    if record.width is not None and record.height is not None:
+                        annotation_entry["size"] = [record.height, record.width]
+
+                annotations.append(annotation_entry)
 
         return {
             "images": images,
@@ -99,7 +106,16 @@ class YoloAnnotationWriter(BaseAnnotationWriter):
 
     Requires ``record.width`` and ``record.height`` to be set.
     This writer assumes boxes are already valid and within image bounds.
+    It does not clip or validate out-of-bounds coordinates in v0.7.5.
+
+    Args:
+        validate_bounds: If True, raise ValueError when any normalized
+            coordinate falls outside [0, 1]. Defaults to False for
+            prototype simplicity.
     """
+
+    def __init__(self, *, validate_bounds: bool = False) -> None:
+        self._validate_bounds = validate_bounds
 
     def write(self, records: Any, output: str | Path) -> None:
         path = Path(output)
@@ -124,9 +140,47 @@ class YoloAnnotationWriter(BaseAnnotationWriter):
             cy = (box.y + box.height / 2) / img_h
             w = box.width / img_w
             h = box.height / img_h
+
+            if self._validate_bounds:
+                for name, value in [("cx", cx), ("cy", cy), ("w", w), ("h", h)]:
+                    if value < 0 or value > 1:
+                        raise ValueError(
+                            f"YOLO normalized {name}={value:.6f} out of bounds [0, 1]. "
+                            "Pass validate_bounds=False to skip this check."
+                        )
+
             lines.append(f"{box.category_id} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
 
         return "\n".join(lines) + ("\n" if lines else "")
+
+
+def _collect_explicit_ids(records: dict[int | str, AnnotationRecord]) -> set[int]:
+    seen: set[int] = set()
+    for record in records.values():
+        for box in record.boxes:
+            if box.annotation_id is not None:
+                aid = box.annotation_id
+                if isinstance(aid, int) and aid in seen:
+                    raise ValueError(f"Duplicate annotation_id {aid} found across records.")
+                if isinstance(aid, int):
+                    seen.add(aid)
+    return seen
+
+
+def _build_mask_index(records: dict[int | str, AnnotationRecord]) -> dict[int | str, list[Any]]:
+    """Build per-image mask segmentation list, indexed by position.
+
+    Only returns segmentation payloads; mask-only records without a
+    corresponding bbox position are not included.
+    """
+    index: dict[int | str, list[Any]] = {}
+    for image_id, record in records.items():
+        segs: list[Any] = []
+        for mask in record.masks:
+            segs.append(mask.segmentation)
+        if segs:
+            index[image_id] = segs
+    return index
 
 
 def _collect_category(categories: dict[int, dict[str, Any]], category_id: int) -> None:

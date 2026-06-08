@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.5
+
+- Fixed COCO writer annotation_id uniqueness across records.
+- Avoided invalid standalone mask annotations without category linkage.
+- Added optional YOLO writer bounds validation via validate_bounds parameter.
+- Clarified YOLO writer in-bounds assumption in documentation.
+- Added annotation writer cleanup tests.
+- Kept annotation writers separate from image-only run workflow.
+
 ## 0.7.4
 
 - Added prototype COCO and YOLO annotation writers.

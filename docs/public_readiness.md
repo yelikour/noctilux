@@ -88,7 +88,7 @@ Current status: The repository is now public (as of v0.3.5). This checklist was 
 - Noctilux does not publish to PyPI yet.
 - Distribution is via `git clone` and `pip install -e .`.
 - OpenCV backend is available as an optional dependency (`noctilux[opencv]`). The default quickstart does not require OpenCV.
-- Annotation synchronization for detection/segmentation/keypoint tasks is still not formally supported. v0.7.4 adds prototype COCO/YOLO annotation writers on top of parser, resize/flip, and crop prototypes, but they are not wired into `noctilux run`; current functionality remains image-only augmentation.
+- Annotation synchronization for detection/segmentation/keypoint tasks is still not formally supported. v0.7.5 cleans up annotation writer prototypes (unique IDs, no standalone masks, optional bounds validation), but writers are not wired into `noctilux run`; current functionality remains image-only augmentation.
 
 ## Known Historical Notes
 

@@ -362,3 +362,21 @@ def test_agent_handoff_mentions_writer_prototype() -> None:
     assert "writer" in text.lower()
     assert "v0.7.4" in text
 
+
+# --- v0.7.5 annotation writer cleanup tests ---
+
+
+def test_agent_handoff_mentions_v075() -> None:
+    text = Path("docs/agent_handoff.md").read_text(encoding="utf-8")
+    assert "v0.7.5" in text
+
+
+def test_annotation_sync_design_mentions_unique_ids() -> None:
+    text = Path("docs/annotation_sync_design.md").read_text(encoding="utf-8")
+    assert "unique" in text.lower()
+
+
+def test_changelog_has_v075() -> None:
+    text = Path("CHANGELOG.md").read_text(encoding="utf-8")
+    assert "0.7.5" in text
+

@@ -4,9 +4,9 @@ This document describes the planned annotation synchronization architecture for 
 
 ## Current State
 
-Noctilux v0.7.4 still processes image-level augmentation only. During `noctilux run`, transforms like resize, crop, or flip do not update object detection bounding boxes, segmentation masks, or keypoint coordinates. This is the correct behavior for image classification, where annotations are simple labels unaffected by geometric transforms.
+Noctilux v0.7.5 still processes image-level augmentation only. During `noctilux run`, transforms like resize, crop, or flip do not update object detection bounding boxes, segmentation masks, or keypoint coordinates. This is the correct behavior for image classification, where annotations are simple labels unaffected by geometric transforms.
 
-v0.7.4 adds prototype COCO and YOLO annotation writers on top of the v0.7.1 schema/parser, v0.7.2 resize/flip helpers, and v0.7.3 crop helpers. Writers are not wired into `noctilux run`, do not change pipeline or metadata behavior, and annotation sync is not yet supported.
+v0.7.5 cleans up the annotation writer prototypes from v0.7.4: annotation IDs are now globally unique, standalone mask annotations without category linkage are no longer emitted, and the YOLO writer has optional bounds validation. Writers are not wired into `noctilux run`, do not change pipeline or metadata behavior, and annotation sync is not yet supported.
 
 Image-only behavior remains unchanged and will remain the default. Annotation synchronization is a future opt-in feature for task-aware pipelines.
 
@@ -389,6 +389,15 @@ annotations:
 - Writers are standalone prototypes, not wired into `noctilux run` or CLI.
 - Tightened `crop_record` to require positive integer pixel dimensions for `crop_width`/`crop_height`.
 - Clarified `min_area` (current) vs `min_bbox_visibility` (planned future option) documentation.
+- Image-only behavior unchanged.
+
+### v0.7.5 — Annotation Writer Cleanup (completed)
+
+- Fixed COCO writer annotation_id uniqueness: explicit IDs are preserved; auto-generated IDs start above the maximum explicit ID. Duplicate explicit IDs raise ValueError.
+- Removed standalone mask annotations with `category_id=-1`: segmentation is only attached to existing bbox annotations when positionally matched. Standalone masks without category linkage are not emitted.
+- Added optional `validate_bounds` parameter to YOLO writer: when True, raises ValueError for out-of-range normalized coordinates. Defaults to False.
+- Clarified in documentation that YOLO writer assumes valid in-bounds boxes unless `validate_bounds=True`.
+- Writers remain standalone prototypes, not wired into `noctilux run` or CLI.
 - Image-only behavior unchanged.
 
 ### v0.8.0 — COCO and YOLO Minimal Sync Support

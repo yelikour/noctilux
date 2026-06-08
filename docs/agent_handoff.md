@@ -89,6 +89,7 @@ Metadata output structure from `noctilux run`:
 - `v0.7.2`: bbox geometry sync primitives — standalone resize/horizontal-flip/vertical-flip helpers. Not wired into `noctilux run`; crop, rotate, mask, and keypoint sync remain unimplemented.
 - `v0.7.3`: bbox crop handling primitives — standalone clipping, crop-relative translation, and `min_area` filtering. Not wired into `noctilux run`; rotate, mask, polygon, and keypoint sync remain unimplemented.
 - `v0.7.4`: annotation writer prototype — `CocoAnnotationWriter` and `YoloAnnotationWriter` in `src/noctilux/annotations/writers.py`. Writers exist but are not wired into `noctilux run`; image-only behavior unchanged.
+- `v0.7.5`: annotation writer cleanup — globally unique annotation IDs, no standalone mask annotations without category linkage, optional YOLO bounds validation. Writers remain prototype and are not wired into `noctilux run`.
 
 Important tag state:
 
@@ -163,7 +164,7 @@ noctilux report \
 - `v0.4.x`: broader backend coverage.
 - `v0.5.0`: parallel execution and resume support.
 - `v0.6.0`: parallel hardening completed; parallel still not declared stable.
-- `v0.7.x`: annotation synchronization design and prototypes. v0.7.4 adds prototype COCO/YOLO writers, but annotation support is not wired into `noctilux run`.
+- `v0.7.x`: annotation synchronization design and prototypes. v0.7.5 cleans up writer prototypes (unique IDs, no standalone masks, optional bounds validation), but annotation support is not wired into `noctilux run`.
 - `v0.8.0`: detection and segmentation annotation synchronization.
 - Adjust the roadmap when the user gives a more specific task.
 
