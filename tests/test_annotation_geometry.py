@@ -5,6 +5,8 @@ import pytest
 from noctilux.annotations import (
     AnnotationRecord,
     BoundingBox,
+    crop_box,
+    crop_record,
     horizontal_flip_box,
     horizontal_flip_record,
     resize_box,
@@ -136,6 +138,131 @@ def test_geometry_helpers_preserve_metadata_fields() -> None:
     assert box.area == 600
     assert resized.raw == record.raw
     assert resized.raw is not record.raw
+
+
+def test_crop_box_inside_window_shifts_to_crop_origin() -> None:
+    box = BoundingBox(x=20, y=30, width=40, height=50, category_id=3, annotation_id="ann", iscrowd=0)
+
+    cropped = crop_box(box, crop_x=10, crop_y=20, crop_width=100, crop_height=100)
+
+    assert cropped == BoundingBox(
+        x=10,
+        y=10,
+        width=40,
+        height=50,
+        category_id=3,
+        annotation_id="ann",
+        iscrowd=0,
+        area=2000,
+    )
+
+
+def test_crop_box_clips_left_and_top_edges() -> None:
+    box = BoundingBox(x=5, y=10, width=30, height=40, category_id=3)
+
+    cropped = crop_box(box, crop_x=20, crop_y=25, crop_width=100, crop_height=100)
+
+    assert cropped is not None
+    assert (cropped.x, cropped.y, cropped.width, cropped.height, cropped.area) == (0, 0, 15, 25, 375)
+
+
+def test_crop_box_clips_right_and_bottom_edges() -> None:
+    box = BoundingBox(x=80, y=90, width=40, height=50, category_id=3)
+
+    cropped = crop_box(box, crop_x=20, crop_y=25, crop_width=90, crop_height=100)
+
+    assert cropped is not None
+    assert (cropped.x, cropped.y, cropped.width, cropped.height, cropped.area) == (60, 65, 30, 35, 1050)
+
+
+def test_crop_box_outside_window_returns_none() -> None:
+    box = BoundingBox(x=120, y=130, width=10, height=10, category_id=3)
+
+    assert crop_box(box, crop_x=0, crop_y=0, crop_width=100, crop_height=100) is None
+
+
+def test_crop_box_smaller_than_min_area_returns_none() -> None:
+    box = BoundingBox(x=95, y=95, width=10, height=10, category_id=3)
+
+    assert crop_box(box, crop_x=0, crop_y=0, crop_width=100, crop_height=100, min_area=26) is None
+
+
+def test_crop_record_filters_boxes_and_updates_size() -> None:
+    record = _make_record()
+
+    cropped = crop_record(record, crop_x=20, crop_y=0, crop_width=90, crop_height=60)
+
+    assert cropped.width == 90
+    assert cropped.height == 60
+    assert [(box.x, box.y, box.width, box.height) for box in cropped.boxes] == [
+        (0, 10, 20, 20),
+        (80, 20, 10, 30),
+    ]
+
+
+def test_crop_record_drops_non_intersecting_boxes() -> None:
+    record = AnnotationRecord(
+        image_id="image-1",
+        width=200,
+        height=100,
+        boxes=[
+            BoundingBox(x=10, y=10, width=20, height=20, category_id=1),
+            BoundingBox(x=150, y=80, width=20, height=10, category_id=2),
+        ],
+    )
+
+    cropped = crop_record(record, crop_x=0, crop_y=0, crop_width=50, crop_height=50)
+
+    assert len(cropped.boxes) == 1
+    assert cropped.boxes[0].category_id == 1
+
+
+def test_crop_record_does_not_mutate_original_record() -> None:
+    record = _make_record()
+    original_payload = record.to_dict()
+
+    cropped = crop_record(record, crop_x=20, crop_y=0, crop_width=90, crop_height=60)
+
+    assert cropped is not record
+    assert cropped.boxes[0] is not record.boxes[0]
+    assert record.to_dict() == original_payload
+
+
+def test_crop_updates_bbox_area_to_cropped_area() -> None:
+    box = BoundingBox(x=5, y=5, width=20, height=20, category_id=3, area=400)
+
+    cropped = crop_box(box, crop_x=10, crop_y=10, crop_width=100, crop_height=100)
+
+    assert cropped is not None
+    assert cropped.area == 225
+
+
+def test_crop_helpers_preserve_metadata_fields() -> None:
+    record = _make_record()
+
+    cropped = crop_record(record, crop_x=20, crop_y=0, crop_width=90, crop_height=60)
+    box = cropped.boxes[0]
+
+    assert box.category_id == 3
+    assert box.annotation_id == "ann-1"
+    assert box.iscrowd == 0
+    assert cropped.raw == record.raw
+    assert cropped.raw is not record.raw
+
+
+def test_crop_rejects_invalid_window_and_min_area() -> None:
+    box = BoundingBox(x=10, y=10, width=20, height=20, category_id=3)
+
+    with pytest.raises(ValueError, match="crop_width"):
+        crop_box(box, crop_x=0, crop_y=0, crop_width=0, crop_height=20)
+    with pytest.raises(ValueError, match="crop_height"):
+        crop_box(box, crop_x=0, crop_y=0, crop_width=20, crop_height=0)
+    with pytest.raises(ValueError, match="min_area"):
+        crop_box(box, crop_x=0, crop_y=0, crop_width=20, crop_height=20, min_area=-1)
+    with pytest.raises(ValueError, match="crop_x"):
+        crop_record(_make_record(), crop_x=-1, crop_y=0, crop_width=20, crop_height=20)
+    with pytest.raises(ValueError, match="crop_y"):
+        crop_record(_make_record(), crop_x=0, crop_y=-1, crop_width=20, crop_height=20)
 
 
 def test_image_only_run_smoke_still_passes(capsys: pytest.CaptureFixture[str]) -> None:

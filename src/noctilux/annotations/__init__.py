@@ -1,6 +1,8 @@
 """Annotation schema and parser prototypes."""
 
 from noctilux.annotations.geometry import (
+    crop_box,
+    crop_record,
     horizontal_flip_box,
     horizontal_flip_record,
     resize_box,
@@ -16,6 +18,8 @@ __all__ = [
     "BaseAnnotationParser",
     "BoundingBox",
     "CocoAnnotationParser",
+    "crop_box",
+    "crop_record",
     "horizontal_flip_box",
     "horizontal_flip_record",
     "Keypoint",

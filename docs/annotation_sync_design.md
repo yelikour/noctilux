@@ -4,9 +4,9 @@ This document describes the planned annotation synchronization architecture for 
 
 ## Current State
 
-Noctilux v0.7.2 still processes image-level augmentation only. During `noctilux run`, transforms like resize, crop, or flip do not update object detection bounding boxes, segmentation masks, or keypoint coordinates. This is the correct behavior for image classification, where annotations are simple labels unaffected by geometric transforms.
+Noctilux v0.7.3 still processes image-level augmentation only. During `noctilux run`, transforms like resize, crop, or flip do not update object detection bounding boxes, segmentation masks, or keypoint coordinates. This is the correct behavior for image classification, where annotations are simple labels unaffected by geometric transforms.
 
-v0.7.2 adds internal bbox geometry helpers for resize, horizontal flip, and vertical flip on top of the v0.7.1 schema and parser prototypes. These helpers are not wired into `noctilux run`, do not write annotations, and do not change pipeline or metadata behavior.
+v0.7.3 adds internal bbox crop clipping/filtering helpers on top of the v0.7.1 schema/parser prototypes and v0.7.2 resize/flip helpers. These helpers are not wired into `noctilux run`, do not write annotations, and do not change pipeline or metadata behavior.
 
 Image-only behavior remains unchanged and will remain the default. Annotation synchronization is a future opt-in feature for task-aware pipelines.
 
@@ -22,6 +22,15 @@ Image-only behavior remains unchanged and will remain the default. Annotation sy
 - Completed: immutable bbox resize helpers for boxes and records.
 - Completed: immutable horizontal and vertical bbox flip helpers for boxes and records.
 - Not implemented: crop, rotate, mask/polygon, or keypoint synchronization.
+- Not integrated: `noctilux run`, transforms, CLI, config, writers, and metadata remain unchanged.
+
+## v0.7.3 Crop Primitive Status
+
+- Completed: immutable bbox crop helpers for boxes and records.
+- Crop intersections are clipped to the crop window and translated to the crop-relative coordinate system.
+- Fully removed boxes and intersections smaller than `min_area` are filtered out.
+- Cropped bbox `area` is updated to the new intersection area.
+- Not implemented: rotate, mask/polygon, or keypoint synchronization.
 - Not integrated: `noctilux run`, transforms, CLI, config, writers, and metadata remain unchanged.
 
 ## Why Annotation Sync Matters
@@ -147,8 +156,8 @@ The internal `noctilux.annotations` module provides:
 - `MaskRef`: an optional mask path, raw segmentation payload, and optional size.
 - `AnnotationRecord`: one image's dimensions, paths, boxes, masks, keypoints, and optional raw source data.
 
-Each schema dataclass supports a simple `to_dict()` / `from_dict()` round trip. v0.7.2 uses these structures in
-standalone bbox resize/flip helpers. `AnnotationTransformResult`, transform binding, and run integration remain future work.
+Each schema dataclass supports a simple `to_dict()` / `from_dict()` round trip. v0.7.3 uses these structures in
+standalone bbox resize/flip/crop helpers. `AnnotationTransformResult`, transform binding, and run integration remain future work.
 
 ## Pipeline Design
 
@@ -362,12 +371,14 @@ annotations:
 - Did not implement crop, rotate, mask/polygon, or keypoint synchronization.
 - Did not integrate annotation sync into transforms, pipeline execution, CLI, config, or metadata.
 
-### v0.7.3 — Crop Bbox Handling
+### v0.7.3 — Crop Bbox Handling Primitives (completed)
 
-- Implement `transform_annotations` for `center_crop_ratio`, `random_crop_ratio`, `square_crop`.
-- Handle bbox clipping, elimination, and minimum visibility threshold.
-- Add tests for crop edge cases (full elimination, partial clipping, multi-object).
-- Image-only pipelines still unchanged.
+- Added standalone `crop_box` and `crop_record` helpers.
+- Added crop-relative coordinate translation, clipping, and `min_area` filtering.
+- Cropped bbox `area` is updated to the new intersection area.
+- Added tests for full containment, partial clipping, filtering, immutability, validation, and field preservation.
+- Did not implement rotate, mask/polygon, or keypoint synchronization.
+- Did not integrate annotation sync into transforms, pipeline execution, CLI, config, or metadata.
 
 ### v0.8.0 — COCO and YOLO Minimal Sync Support
 
