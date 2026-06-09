@@ -157,9 +157,16 @@ class AnnotationRunContext:
         self.output_records[key] = record
 
     def write(self) -> Path:
-        CocoAnnotationWriter().write(
-            self.output_records, self.output_path, overwrite=self.overwrite_output,
-        )
+        try:
+            CocoAnnotationWriter().write(
+                self.output_records, self.output_path, overwrite=self.overwrite_output,
+            )
+        except FileExistsError as exc:
+            raise AnnotationIntegrationError(
+                f"Annotation output already exists: {self.output_path}. "
+                "The file may have been created by another process during this run. "
+                "Set annotations.overwrite_output to true to replace it."
+            ) from exc
         return self.output_path
 
     def _apply_transform(self, record: AnnotationRecord, transform_log: dict[str, Any]) -> AnnotationRecord:

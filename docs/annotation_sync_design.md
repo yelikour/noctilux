@@ -462,6 +462,20 @@ annotations:
 - Rotate bbox sync, mask/polygon, and keypoint synchronization remain deferred.
 - Image-only behavior and metadata schema fields remain unchanged.
 
+### v0.10.1 — Annotation No-Clobber Atomic Fix (completed)
+
+- Fixed TOCTOU race condition in `CocoAnnotationWriter.write()` when `overwrite=False`.
+- The v0.10.0 implementation used `path.exists()` + `os.replace()`, which allowed a concurrent process to create the target file between the check and the atomic replace, silently overwriting it.
+- `overwrite=False` now uses `os.link()` for atomic no-clobber publish: the kernel guarantees that if the target exists, `os.link()` fails atomically with `EEXIST`/`FileExistsError`.
+- After a successful `os.link()`, the temp file is unlinked. If the unlink fails, the target is still valid — at worst a redundant hard link remains.
+- Temp file creation changed from UUID-named regular file to `tempfile.mkstemp()` with exclusive creation in the target directory.
+- `overwrite=True` continues to use `os.replace()` for atomic replacement.
+- Integration layer (`AnnotationRunContext.write()`) converts the writer's `FileExistsError` to `AnnotationIntegrationError` during the final publish, matching the error type used elsewhere in annotation integration.
+- The integration preflight check in `build_annotation_run_context()` remains as a user-experience optimization (fast fail before image processing). The writer's atomic no-clobber publish is the actual safety guarantee.
+- Added 14 new tests: TOCTOU deterministic regression, concurrent writer, atomic failure paths, integration error conversion, end-to-end overwrite rejection.
+- Annotation + resume/skip-existing/retry-failed/parallel still prohibited.
+- Image-only behavior and metadata schema fields remain unchanged.
+
 ### v0.10.0 — Annotation Safety Hardening (completed)
 
 - Added `annotations.overwrite_output` config option (default `false`).

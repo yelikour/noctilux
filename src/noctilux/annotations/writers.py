@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-import uuid
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -41,27 +41,8 @@ class CocoAnnotationWriter(BaseAnnotationWriter):
     def write(self, records: Any, output: str | Path, *, overwrite: bool = True) -> None:
         path = Path(output)
         path.parent.mkdir(parents=True, exist_ok=True)
-        if not overwrite and path.exists():
-            raise FileExistsError(
-                f"Annotation output already exists: {path}. "
-                "Set annotations.overwrite_output to true to replace it."
-            )
         payload = self._build_coco_payload(records)
-        tmp_name = f".noctilux_anno_{uuid.uuid4().hex}.tmp"
-        tmp_path = path.parent / tmp_name
-        try:
-            with tmp_path.open("w", encoding="utf-8") as handle:
-                json.dump(payload, handle, indent=2)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(tmp_path, path)
-        except BaseException:
-            if tmp_path.exists():
-                try:
-                    tmp_path.unlink()
-                except OSError:
-                    pass
-            raise
+        _write_atomic_json(payload, path, overwrite=overwrite)
 
     def to_string(self, records: Any) -> str:
         payload = self._build_coco_payload(records)
@@ -119,6 +100,56 @@ class CocoAnnotationWriter(BaseAnnotationWriter):
             "annotations": annotations,
             "categories": list(categories.values()),
         }
+
+
+def _write_atomic_json(
+    payload: dict[str, Any],
+    target: Path,
+    *,
+    overwrite: bool,
+) -> None:
+    target = target.resolve()
+    tmp_fd, tmp_name = tempfile.mkstemp(
+        dir=target.parent, prefix=".noctilux_anno_", suffix=".tmp",
+    )
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(tmp_fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if overwrite:
+            os.replace(tmp_path, target)
+        else:
+            _publish_no_clobber(tmp_path, target)
+    except BaseException:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        raise
+
+
+def _publish_no_clobber(tmp_path: Path, target: Path) -> None:
+    try:
+        os.link(tmp_path, target)
+    except FileExistsError:
+        raise FileExistsError(
+            f"Annotation output already exists: {target}. "
+            "Set annotations.overwrite_output to true to replace it."
+        ) from None
+    except OSError as exc:
+        if exc.errno == 17:  # EEXIST on platforms that don't raise FileExistsError
+            raise FileExistsError(
+                f"Annotation output already exists: {target}. "
+                "Set annotations.overwrite_output to true to replace it."
+            ) from exc
+        raise
+    try:
+        tmp_path.unlink()
+    except OSError:
+        pass
 
 
 class YoloAnnotationWriter(BaseAnnotationWriter):

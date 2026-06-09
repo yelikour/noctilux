@@ -88,7 +88,7 @@ Current status: The repository is now public (as of v0.3.5). This checklist was 
 - Noctilux does not publish to PyPI yet.
 - Distribution is via `git clone` and `pip install -e .`.
 - OpenCV backend is available as an optional dependency (`noctilux[opencv]`). The default quickstart does not require OpenCV.
-- Annotation IO is experimental and opt-in. v0.8.0 wires minimal COCO bbox-only input/output into `noctilux run` for selected transforms. v0.8.1 adds guardrails for resume, parallel, and output overwrite safety. v0.9.0 exposes crop window metadata in transform log for all crop transforms. v0.9.1 adds crop bbox sync for all four crop transforms. v0.10.0 adds annotation output safety (overwrite_output config, atomic JSON write, full crop_window validation, source dimension checks). Rotate, mask/polygon, and keypoint annotation sync remain deferred. Image-only workflows remain the default and are unaffected.
+- Annotation IO is experimental and opt-in. v0.8.0 wires minimal COCO bbox-only input/output into `noctilux run` for selected transforms. v0.8.1 adds guardrails for resume, parallel, and output overwrite safety. v0.9.0 exposes crop window metadata in transform log for all crop transforms. v0.9.1 adds crop bbox sync for all four crop transforms. v0.10.0 adds annotation output safety (overwrite_output config, atomic JSON write, full crop_window validation, source dimension checks). v0.10.1 fixes the overwrite_output=false no-clobber race with atomic os.link() publish. Rotate, mask/polygon, and keypoint annotation sync remain deferred. Image-only workflows remain the default and are unaffected.
 
 ## Known Historical Notes
 

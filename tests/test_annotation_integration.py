@@ -1457,3 +1457,307 @@ def test_annotation_guardrails_still_enforced(tmp_path: Path, caplog: pytest.Log
     # parallel rejected
     assert main(["run", "--config", str(config_path), "--num-workers", "2"]) == 1
     assert "serial runs only" in caplog.text
+
+
+# --- v0.10.1 no-clobber atomic write tests ---
+
+
+def test_writer_toctou_target_created_during_publish(tmp_path: Path) -> None:
+    """Deterministic TOCTOU regression: target created between temp write and publish."""
+    import os
+    from unittest.mock import patch
+
+    out = tmp_path / "out.json"
+    records = {1: AnnotationRecord(image_id=1, width=10, height=10,
+                boxes=[BoundingBox(x=0, y=0, width=5, height=5, category_id=1)])}
+    writer = CocoAnnotationWriter()
+
+    real_os_link = os.link
+
+    def patched_link(src, dst, *args, **kwargs):
+        if str(dst) == str(out):
+            # Intruder creates sentinel target before link completes
+            out.write_text(json.dumps({"sentinel": True}))
+        return real_os_link(src, dst, *args, **kwargs)
+
+    with patch("os.link", patched_link):
+        with pytest.raises(FileExistsError, match="already exists"):
+            writer.write(records, out, overwrite=False)
+
+    # Sentinel preserved
+    data = json.loads(out.read_text())
+    assert "sentinel" in data
+    assert "images" not in data
+
+    # No leftover tmp
+    assert list(tmp_path.glob(".noctilux_anno_*.tmp")) == []
+
+
+def test_writer_concurrent_both_overwrite_false(tmp_path: Path) -> None:
+    """Two concurrent writers with overwrite=False: exactly one succeeds."""
+    import threading
+
+    out = tmp_path / "out.json"
+    results: dict[str, str] = {}
+    barrier = threading.Barrier(2, timeout=10)
+
+    records = {1: AnnotationRecord(image_id=1, width=10, height=10,
+                boxes=[BoundingBox(x=0, y=0, width=5, height=5, category_id=1)])}
+
+    def writer_thread(name: str) -> None:
+        barrier.wait()
+        try:
+            CocoAnnotationWriter().write(records, out, overwrite=False)
+            results[name] = "success"
+        except FileExistsError:
+            results[name] = "FileExistsError"
+
+    t1 = threading.Thread(target=writer_thread, args=("w1",))
+    t2 = threading.Thread(target=writer_thread, args=("w2",))
+    t1.start()
+    t2.start()
+    t1.join(timeout=15)
+    t2.join(timeout=15)
+
+    successes = sum(1 for v in results.values() if v == "success")
+    failures = sum(1 for v in results.values() if v == "FileExistsError")
+    assert successes == 1, f"Expected exactly 1 success, got {successes}: {results}"
+    assert failures == 1, f"Expected exactly 1 failure, got {failures}: {results}"
+
+    # Target is valid JSON
+    data = json.loads(out.read_text())
+    assert "images" in data
+
+    # No leftover tmp files
+    assert list(tmp_path.glob(".noctilux_anno_*.tmp")) == []
+
+
+def test_writer_standalone_overwrite_false_existing(tmp_path: Path) -> None:
+    """Standalone writer: overwrite=False rejects existing file."""
+    out = tmp_path / "out.json"
+    records = {1: AnnotationRecord(image_id=1, width=10, height=10,
+                boxes=[BoundingBox(x=0, y=0, width=5, height=5, category_id=1)])}
+    writer = CocoAnnotationWriter()
+
+    # Create sentinel
+    out.write_text(json.dumps({"existing": True}))
+
+    with pytest.raises(FileExistsError, match="already exists"):
+        writer.write(records, out, overwrite=False)
+
+    # Sentinel unchanged
+    assert json.loads(out.read_text()) == {"existing": True}
+    assert list(tmp_path.glob(".noctilux_anno_*.tmp")) == []
+
+
+def test_writer_overwrite_false_new_file_succeeds(tmp_path: Path) -> None:
+    """overwrite=False succeeds when target does not exist."""
+    out = tmp_path / "out.json"
+    records = {1: AnnotationRecord(image_id=1, width=10, height=10,
+                boxes=[BoundingBox(x=0, y=0, width=5, height=5, category_id=1)])}
+    CocoAnnotationWriter().write(records, out, overwrite=False)
+    assert out.exists()
+    data = json.loads(out.read_text())
+    assert "images" in data
+    assert list(tmp_path.glob(".noctilux_anno_*.tmp")) == []
+
+
+def test_writer_overwrite_false_preserves_content_on_link_eexist(tmp_path: Path) -> None:
+    """When os.link fails with EEXIST, original target content is preserved."""
+    import os
+    from unittest.mock import patch
+
+    out = tmp_path / "out.json"
+    records = {1: AnnotationRecord(image_id=1, width=10, height=10,
+                boxes=[BoundingBox(x=0, y=0, width=5, height=5, category_id=1)])}
+
+    # Create target with sentinel
+    out.write_text(json.dumps({"sentinel": "unchanged"}))
+
+    real_os_link = os.link
+
+    def patched_link(src, dst, *args, **kwargs):
+        # Target exists, link fails with EEXIST naturally
+        return real_os_link(src, dst, *args, **kwargs)
+
+    with patch("os.link", patched_link):
+        with pytest.raises(FileExistsError, match="already exists"):
+            CocoAnnotationWriter().write(records, out, overwrite=False)
+
+    assert json.loads(out.read_text()) == {"sentinel": "unchanged"}
+    assert list(tmp_path.glob(".noctilux_anno_*.tmp")) == []
+
+
+def test_writer_os_link_oserror_cleans_temp(tmp_path: Path) -> None:
+    """When os.link fails with non-EEXIST OSError, temp file is cleaned."""
+    from unittest.mock import patch
+
+    out = tmp_path / "out.json"
+    records = {1: AnnotationRecord(image_id=1, width=10, height=10,
+                boxes=[BoundingBox(x=0, y=0, width=5, height=5, category_id=1)])}
+
+    with patch("os.link", side_effect=OSError(28, "No space left on device")):
+        with pytest.raises(OSError, match="No space left"):
+            CocoAnnotationWriter().write(records, out, overwrite=False)
+
+    assert not out.exists()
+    assert list(tmp_path.glob(".noctilux_anno_*.tmp")) == []
+
+
+def test_writer_os_replace_failure_cleans_temp(tmp_path: Path) -> None:
+    """When os.replace fails, temp file is cleaned."""
+    from unittest.mock import patch
+
+    out = tmp_path / "out.json"
+    out.write_text(json.dumps({"original": True}))
+    records = {1: AnnotationRecord(image_id=1, width=10, height=10,
+                boxes=[BoundingBox(x=0, y=0, width=5, height=5, category_id=1)])}
+
+    with patch("os.replace", side_effect=OSError("permission denied")):
+        with pytest.raises(OSError, match="permission denied"):
+            CocoAnnotationWriter().write(records, out, overwrite=True)
+
+    # Original preserved
+    assert json.loads(out.read_text()) == {"original": True}
+    assert list(tmp_path.glob(".noctilux_anno_*.tmp")) == []
+
+
+def test_writer_json_dump_failure_no_target(tmp_path: Path) -> None:
+    """When json.dump fails, no target file is created."""
+    from unittest.mock import patch
+
+    out = tmp_path / "out.json"
+    records = {1: AnnotationRecord(image_id=1, width=10, height=10,
+                boxes=[BoundingBox(x=0, y=0, width=5, height=5, category_id=1)])}
+
+    with patch("json.dump", side_effect=TypeError("serialization error")):
+        with pytest.raises(TypeError, match="serialization error"):
+            CocoAnnotationWriter().write(records, out, overwrite=True)
+
+    assert not out.exists()
+    assert list(tmp_path.glob(".noctilux_anno_*.tmp")) == []
+
+
+def test_writer_fsync_failure_no_target(tmp_path: Path) -> None:
+    """When fsync fails, no target file is created."""
+    from unittest.mock import patch
+
+    out = tmp_path / "out.json"
+    records = {1: AnnotationRecord(image_id=1, width=10, height=10,
+                boxes=[BoundingBox(x=0, y=0, width=5, height=5, category_id=1)])}
+
+    with patch("os.fsync", side_effect=OSError("fsync error")):
+        with pytest.raises(OSError, match="fsync error"):
+            CocoAnnotationWriter().write(records, out, overwrite=True)
+
+    assert not out.exists()
+    assert list(tmp_path.glob(".noctilux_anno_*.tmp")) == []
+
+
+def test_writer_temp_file_uses_exclusive_create(tmp_path: Path) -> None:
+    """Verify temp file is created via mkstemp (exclusive creation)."""
+    import tempfile
+    from unittest.mock import patch
+
+    out = tmp_path / "out.json"
+    records = {1: AnnotationRecord(image_id=1, width=10, height=10,
+                boxes=[BoundingBox(x=0, y=0, width=5, height=5, category_id=1)])}
+
+    mkstemp_calls: list[dict] = []
+
+    original_mkstemp = tempfile.mkstemp
+
+    def patched_mkstemp(*args, **kwargs):
+        result = original_mkstemp(*args, **kwargs)
+        mkstemp_calls.append({"args": args, "kwargs": kwargs, "dir": kwargs.get("dir")})
+        return result
+
+    with patch("tempfile.mkstemp", patched_mkstemp):
+        CocoAnnotationWriter().write(records, out, overwrite=True)
+
+    assert len(mkstemp_calls) == 1
+    assert str(Path(mkstemp_calls[0]["kwargs"]["dir"])) == str(out.resolve().parent)
+    assert ".noctilux_anno_" in mkstemp_calls[0]["kwargs"].get("prefix", "")
+
+
+def test_writer_success_no_leftover_tmp(tmp_path: Path) -> None:
+    """After successful overwrite=True and overwrite=False writes, no temp files remain."""
+    records = {1: AnnotationRecord(image_id=1, width=10, height=10,
+                boxes=[BoundingBox(x=0, y=0, width=5, height=5, category_id=1)])}
+
+    out1 = tmp_path / "a.json"
+    out2 = tmp_path / "b.json"
+    CocoAnnotationWriter().write(records, out1, overwrite=True)
+    CocoAnnotationWriter().write(records, out2, overwrite=False)
+
+    assert list(tmp_path.glob(".noctilux_anno_*.tmp")) == []
+
+
+def test_writer_target_is_directory_fails(tmp_path: Path) -> None:
+    """When target is a directory, writer fails cleanly."""
+    out = tmp_path / "out.json"
+    out.mkdir()
+    records = {1: AnnotationRecord(image_id=1, width=10, height=10,
+                boxes=[BoundingBox(x=0, y=0, width=5, height=5, category_id=1)])}
+
+    with pytest.raises((IsADirectoryError, OSError)):
+        CocoAnnotationWriter().write(records, out, overwrite=True)
+
+    # Directory still exists, no tmp
+    assert out.is_dir()
+    assert list(tmp_path.glob(".noctilux_anno_*.tmp")) == []
+
+
+def test_integration_write_converts_file_exists_to_annotation_error(
+    tmp_path: Path,
+) -> None:
+    """Integration layer converts writer FileExistsError to AnnotationIntegrationError."""
+    from noctilux.annotations.integration import (
+        AnnotationIntegrationError,
+        AnnotationRunContext,
+    )
+
+    out = tmp_path / "annotations.json"
+    records = {1: AnnotationRecord(image_id=1, width=10, height=10,
+                boxes=[BoundingBox(x=0, y=0, width=5, height=5, category_id=1)])}
+
+    ctx = AnnotationRunContext.from_records(
+        records, output_path=out, on_unsupported_transform="error", overwrite_output=False,
+    )
+    ctx.add_output_record(records[1])
+
+    # Simulate: target created during run
+    out.write_text(json.dumps({"intruder": True}))
+
+    with pytest.raises(AnnotationIntegrationError, match="may have been created by another process"):
+        ctx.write()
+
+
+def test_writer_overwrite_false_via_integration_run(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """End-to-end: second run with overwrite_output=false is rejected."""
+    caplog.set_level("ERROR", logger="noctilux")
+    _make_image(tmp_path / "images" / "sample.jpg")
+    coco_path = _write_coco(tmp_path)
+    config = _with_annotations(
+        _base_config(tmp_path, transforms=[
+            {"name": "brightness_contrast", "params": {"brightness": 1.0, "contrast": 1.0}},
+        ]),
+        coco_path,
+    )
+    config_path = _write_config(tmp_path, config)
+
+    # First run succeeds
+    exit_code = main(["run", "--config", str(config_path)])
+    capsys.readouterr()
+    assert exit_code == 0
+
+    # Second run with overwrite_output false (default) should fail at preflight
+    config["annotations"]["overwrite_output"] = False
+    config_path2 = _write_config(tmp_path, config, name="config2.yaml")
+    exit_code = main(["run", "--config", str(config_path2)])
+    capsys.readouterr()
+    assert exit_code == 1
+    assert "already exists" in caplog.text

@@ -29,6 +29,7 @@ Internal annotation status:
 - v0.9.0 exposes crop_window metadata in transform log for all crop transforms (center_crop_ratio, random_crop_ratio, square_crop, random_resized_crop). Crop transforms write crop_window to the context dict; pipeline reads it into the log entry.
 - v0.9.1 wires crop_window into annotation crop bbox sync for all four crop transforms. center_crop_ratio, random_crop_ratio, and square_crop clip and translate bboxes; random_resized_crop clips, translates, then resizes to output dimensions. Missing crop_window raises AnnotationIntegrationError. Rotate, mask/polygon, and keypoint sync remain deferred.
 - v0.10.0 adds annotation safety hardening: overwrite_output config (default false), atomic JSON write, full crop_window validation (six integer fields, range checks, source dimension match), preflight output existence check. Image-only behavior unchanged.
+- v0.10.1 fixes TOCTOU race in overwrite=False: uses os.link() atomic no-clobber publish instead of check-then-replace; temp file uses mkstemp exclusive creation; integration layer converts writer FileExistsError to AnnotationIntegrationError. overwrite=True unchanged.
 
 Current transform categories:
 
@@ -99,6 +100,7 @@ Metadata output structure from `noctilux run`:
 - `v0.9.0`: crop window metadata — transform log records exact crop coordinates for all crop transforms; annotation crop bbox sync remains deferred.
 - `v0.9.1`: annotation crop bbox sync — wires crop_window into crop_record for center_crop_ratio, random_crop_ratio, square_crop, and random_resized_crop; random_resized_crop applies crop then resize. Missing crop_window raises AnnotationIntegrationError. Rotate, mask/polygon, and keypoint sync remain deferred.
 - `v0.10.0`: annotation safety hardening — overwrite_output config, atomic JSON write, full crop_window validation, source dimension validation, preflight output check.
+- `v0.10.1`: annotation no-clobber fix — os.link() atomic publish for overwrite=False, mkstemp exclusive temp, integration error conversion.
 
 Important tag state:
 
@@ -181,6 +183,7 @@ noctilux report \
 - `v0.9.0`: crop window metadata in transform log for all crop transforms; annotation crop sync not yet enabled.
 - `v0.9.1`: annotation crop bbox sync for all crop transforms using crop_window metadata; rotate, mask/polygon, and keypoint sync remain deferred.
 - `v0.10.0`: annotation safety hardening — overwrite_output, atomic write, crop_window validation, source dimension check.
+- `v0.10.1`: annotation no-clobber atomic fix — os.link() for overwrite=False, mkstemp exclusive temp, integration error conversion.
 - Adjust the roadmap when the user gives a more specific task.
 
 ## New Agent Onboarding Flow

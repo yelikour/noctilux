@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.1
+
+- Fixed TOCTOU race in CocoAnnotationWriter.write() with overwrite=False.
+- overwrite=False now uses os.link() for atomic no-clobber publish instead of check-then-replace.
+- Temp file creation now uses tempfile.mkstemp() for exclusive creation in the target directory.
+- Integration layer converts writer FileExistsError to AnnotationIntegrationError during final publish.
+- overwrite=True continues to use os.replace() for atomic replacement.
+- Added 14 new tests: TOCTOU regression, concurrent writer, atomic failure paths, integration error conversion, end-to-end overwrite rejection.
+- Kept image-only behavior and metadata schema unchanged.
+- Annotation + resume/skip-existing/retry-failed/parallel still prohibited.
+
 ## 0.10.0
 
 - Added annotations.overwrite_output config (default false) to control annotation output overwrite behavior.

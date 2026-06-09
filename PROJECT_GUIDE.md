@@ -2015,6 +2015,21 @@ YAML 调用：
 * YOLO dataset-level integration
 * VOC XML integration
 
+### v0.10.1（已完成）
+
+目标：修复 annotation no-clobber 竞态。
+
+已完成：
+
+* 修复 CocoAnnotationWriter.write() 在 overwrite=False 下的 TOCTOU 覆盖竞态
+* overwrite=False 改用 os.link() 原子 no-clobber 发布，不再依赖 check-then-replace
+* 临时文件改用 tempfile.mkstemp() 独占创建，确保在目标目录内
+* Integration 层将 writer 发布阶段的 FileExistsError 转换为 AnnotationIntegrationError
+* overwrite=True 继续使用 os.replace() 原子替换
+* 新增 14 个测试：TOCTOU 回归、并发 writer、原子失败路径、integration 错误转换、端到端覆盖拒绝
+* image-only 行为和 metadata schema 不变
+* annotation + resume/skip-existing/retry-failed/parallel 仍被禁止
+
 ### v0.10.0（已完成）
 
 目标：annotation safety hardening。
