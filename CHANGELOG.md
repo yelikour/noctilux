@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.10.0
+
+- Added annotations.overwrite_output config (default false) to control annotation output overwrite behavior.
+- Annotation output file now uses atomic write (write to temp then os.replace) to prevent truncated output on failure.
+- Annotation output_path preflight check: if file exists and overwrite_output is false, fails before any image processing.
+- Full crop_window defensive validation: all six fields must be strict integers (bool rejected), with range and bounds checks.
+- Source dimension validation: crop_window source dimensions must match current record dimensions before applying crop sync.
+- All validation errors consistently raise AnnotationIntegrationError with descriptive messages (no raw KeyError/ValueError leak).
+- Added 62 new tests: crop_window validation (18), precise geometry (12), output safety (11), compatibility (2), plus existing 19 tests updated.
+- Kept image-only behavior and metadata schema unchanged.
+- Annotation + resume/skip-existing/retry-failed/parallel still prohibited.
+
 ## 0.9.1
 
 - Added annotation crop bbox sync for all four crop transforms: center_crop_ratio, random_crop_ratio, square_crop, and random_resized_crop.

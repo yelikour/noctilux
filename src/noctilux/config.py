@@ -51,6 +51,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "output_path": None,
         "bbox_only": True,
         "on_unsupported_transform": "error",
+        "overwrite_output": False,
     },
 }
 
@@ -262,6 +263,10 @@ def _validate_annotations_config(annotations_cfg: Any) -> None:
         raise ValueError("annotations.input_path is required when annotations.enabled is true.")
     if not Path(input_path).exists():
         raise FileNotFoundError(f"annotations.input_path does not exist: {input_path}")
+
+    overwrite_output = annotations_cfg.get("overwrite_output", False)
+    if not isinstance(overwrite_output, bool):
+        raise ValueError("annotations.overwrite_output must be a boolean.")
 
 
 def _validate_relative_component(value: Any, field_name: str) -> None:

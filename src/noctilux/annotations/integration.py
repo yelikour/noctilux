@@ -33,6 +33,7 @@ _CROP_ONLY_TRANSFORMS = {
     "random_crop_ratio",
     "square_crop",
 }
+_CROP_WINDOW_INT_FIELDS = ("x", "y", "width", "height", "source_width", "source_height")
 PHOTOMETRIC_TRANSFORMS = {
     "jpeg_compression",
     "webp_compression",
@@ -64,6 +65,7 @@ class AnnotationRunContext:
     ambiguous_path_keys: set[str]
     output_path: Path
     on_unsupported_transform: str = "error"
+    overwrite_output: bool = False
     output_records: dict[str, AnnotationRecord] = field(default_factory=dict)
     unsupported_transform_warnings: list[str] = field(default_factory=list)
     unmatched_sample_count: int = 0
@@ -75,6 +77,7 @@ class AnnotationRunContext:
         *,
         output_path: Path,
         on_unsupported_transform: str,
+        overwrite_output: bool = False,
     ) -> AnnotationRunContext:
         records_by_image_id: dict[str, AnnotationRecord] = {}
         records_by_path: dict[str, AnnotationRecord] = {}
@@ -99,6 +102,7 @@ class AnnotationRunContext:
             ambiguous_path_keys=ambiguous_path_keys,
             output_path=output_path,
             on_unsupported_transform=on_unsupported_transform,
+            overwrite_output=overwrite_output,
         )
 
     def build_output_record(
@@ -153,7 +157,9 @@ class AnnotationRunContext:
         self.output_records[key] = record
 
     def write(self) -> Path:
-        CocoAnnotationWriter().write(self.output_records, self.output_path)
+        CocoAnnotationWriter().write(
+            self.output_records, self.output_path, overwrite=self.overwrite_output,
+        )
         return self.output_path
 
     def _apply_transform(self, record: AnnotationRecord, transform_log: dict[str, Any]) -> AnnotationRecord:
@@ -181,7 +187,7 @@ class AnnotationRunContext:
         return self._handle_unsupported(record, name)
 
     def _apply_crop(self, record: AnnotationRecord, transform_log: dict[str, Any]) -> AnnotationRecord:
-        crop_window = _require_crop_window(transform_log)
+        crop_window = _validate_crop_window(transform_log, record)
         return crop_record(
             record,
             crop_x=crop_window["x"],
@@ -191,7 +197,7 @@ class AnnotationRunContext:
         )
 
     def _apply_crop_with_resize(self, record: AnnotationRecord, transform_log: dict[str, Any]) -> AnnotationRecord:
-        crop_window = _require_crop_window(transform_log)
+        crop_window = _validate_crop_window(transform_log, record)
         cropped = crop_record(
             record,
             crop_x=crop_window["x"],
@@ -248,13 +254,99 @@ def build_annotation_run_context(config: dict[str, Any]) -> AnnotationRunContext
             "Overwriting the original annotation file is not allowed."
         )
 
+    overwrite_output = annotations_cfg.get("overwrite_output", False)
+    if not overwrite_output and resolved_output.exists():
+        raise AnnotationIntegrationError(
+            f"Annotation output already exists: {output_path}. "
+            "Set annotations.overwrite_output to true to replace it."
+        )
+
     records = CocoAnnotationParser().parse(input_path)
 
     return AnnotationRunContext.from_records(
         records,
         output_path=output_path,
         on_unsupported_transform=annotations_cfg.get("on_unsupported_transform", "error"),
+        overwrite_output=overwrite_output,
     )
+
+
+def _validate_crop_window(
+    transform_log: dict[str, Any],
+    record: AnnotationRecord,
+) -> dict[str, int]:
+    name = transform_log.get("name")
+    crop_window = transform_log.get("crop_window")
+    if not isinstance(crop_window, dict):
+        raise AnnotationIntegrationError(
+            f"Missing or invalid crop_window in transform log for annotation bbox sync "
+            f"transform {name!r}. Crop transforms must record crop_window metadata."
+        )
+
+    for field_name in _CROP_WINDOW_INT_FIELDS:
+        value = crop_window.get(field_name)
+        if value is None:
+            raise AnnotationIntegrationError(
+                f"crop_window missing required field {field_name!r} for "
+                f"annotation bbox sync transform {name!r}."
+            )
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise AnnotationIntegrationError(
+                f"crop_window.{field_name} must be an integer for annotation bbox sync "
+                f"transform {name!r}, got {type(value).__name__}: {value!r}."
+            )
+
+    cw_x: int = crop_window["x"]
+    cw_y: int = crop_window["y"]
+    cw_w: int = crop_window["width"]
+    cw_h: int = crop_window["height"]
+    sw: int = crop_window["source_width"]
+    sh: int = crop_window["source_height"]
+
+    if cw_x < 0:
+        raise AnnotationIntegrationError(
+            f"crop_window.x must be >= 0 for annotation bbox sync transform {name!r}, got {cw_x}."
+        )
+    if cw_y < 0:
+        raise AnnotationIntegrationError(
+            f"crop_window.y must be >= 0 for annotation bbox sync transform {name!r}, got {cw_y}."
+        )
+    if cw_w <= 0:
+        raise AnnotationIntegrationError(
+            f"crop_window.width must be > 0 for annotation bbox sync transform {name!r}, got {cw_w}."
+        )
+    if cw_h <= 0:
+        raise AnnotationIntegrationError(
+            f"crop_window.height must be > 0 for annotation bbox sync transform {name!r}, got {cw_h}."
+        )
+    if sw <= 0:
+        raise AnnotationIntegrationError(
+            f"crop_window.source_width must be > 0 for annotation bbox sync transform {name!r}, got {sw}."
+        )
+    if sh <= 0:
+        raise AnnotationIntegrationError(
+            f"crop_window.source_height must be > 0 for annotation bbox sync transform {name!r}, got {sh}."
+        )
+    if cw_x + cw_w > sw:
+        raise AnnotationIntegrationError(
+            f"crop_window.x + crop_window.width ({cw_x} + {cw_w} = {cw_x + cw_w}) exceeds "
+            f"crop_window.source_width ({sw}) for annotation bbox sync transform {name!r}."
+        )
+    if cw_y + cw_h > sh:
+        raise AnnotationIntegrationError(
+            f"crop_window.y + crop_window.height ({cw_y} + {cw_h} = {cw_y + cw_h}) exceeds "
+            f"crop_window.source_height ({sh}) for annotation bbox sync transform {name!r}."
+        )
+
+    if record.width is not None and record.height is not None:
+        if sw != record.width or sh != record.height:
+            raise AnnotationIntegrationError(
+                f"crop_window source dimensions ({sw}x{sh}) do not match current record "
+                f"dimensions ({record.width}x{record.height}) for annotation bbox sync "
+                f"transform {name!r}. The transform log may be stale or corrupted."
+            )
+
+    return crop_window
 
 
 def _bbox_only_record(record: AnnotationRecord) -> AnnotationRecord:
@@ -361,17 +453,6 @@ def _annotation_path_keys(value: str) -> list[str]:
     if path.name:
         keys.append(path.name)
     return _dedupe(keys)
-
-
-def _require_crop_window(transform_log: dict[str, Any]) -> dict[str, int]:
-    crop_window = transform_log.get("crop_window")
-    if not isinstance(crop_window, dict) or "x" not in crop_window:
-        name = transform_log.get("name")
-        raise AnnotationIntegrationError(
-            f"Missing crop_window in transform log for annotation bbox sync transform {name!r}. "
-            "Crop transforms must record crop_window metadata."
-        )
-    return crop_window
 
 
 def _dedupe(values: list[str]) -> list[str]:

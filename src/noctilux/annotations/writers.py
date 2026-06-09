@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -36,12 +38,30 @@ class CocoAnnotationWriter(BaseAnnotationWriter):
     to synchronize or attach segmentation payloads.
     """
 
-    def write(self, records: Any, output: str | Path) -> None:
+    def write(self, records: Any, output: str | Path, *, overwrite: bool = True) -> None:
         path = Path(output)
         path.parent.mkdir(parents=True, exist_ok=True)
+        if not overwrite and path.exists():
+            raise FileExistsError(
+                f"Annotation output already exists: {path}. "
+                "Set annotations.overwrite_output to true to replace it."
+            )
         payload = self._build_coco_payload(records)
-        with path.open("w", encoding="utf-8") as handle:
-            json.dump(payload, handle, indent=2)
+        tmp_name = f".noctilux_anno_{uuid.uuid4().hex}.tmp"
+        tmp_path = path.parent / tmp_name
+        try:
+            with tmp_path.open("w", encoding="utf-8") as handle:
+                json.dump(payload, handle, indent=2)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(tmp_path, path)
+        except BaseException:
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
+            raise
 
     def to_string(self, records: Any) -> str:
         payload = self._build_coco_payload(records)

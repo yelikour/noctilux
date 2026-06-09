@@ -462,7 +462,21 @@ annotations:
 - Rotate bbox sync, mask/polygon, and keypoint synchronization remain deferred.
 - Image-only behavior and metadata schema fields remain unchanged.
 
-## Out of Scope
+### v0.10.0 — Annotation Safety Hardening (completed)
+
+- Added `annotations.overwrite_output` config option (default `false`).
+- When `overwrite_output` is false and the output file exists, the run fails before any image processing begins.
+- `CocoAnnotationWriter.write()` now uses atomic write: JSON is written to a temporary file in the same directory, then `os.replace` replaces the target. On failure, the original file is preserved and the temp file is cleaned up.
+- Added `overwrite` parameter to `CocoAnnotationWriter.write()`. Default is `True` to preserve backward compatibility for standalone callers.
+- Full `crop_window` validation via `_validate_crop_window`:
+  - All six fields (`x`, `y`, `width`, `height`, `source_width`, `source_height`) must be strict integers. `bool` is rejected.
+  - Range checks: `x >= 0`, `y >= 0`, `width > 0`, `height > 0`, `source_width > 0`, `source_height > 0`.
+  - Bounds checks: `x + width <= source_width`, `y + height <= source_height`.
+  - Source dimension validation: `source_width` and `source_height` must match current `record.width` and `record.height` (when available), catching stale or mismatched transform logs.
+- All validation errors raise `AnnotationIntegrationError` with descriptive messages including transform name, field name, and invalid value. No raw `KeyError`, `TypeError`, or `ValueError` leaks.
+- Replaced `_require_crop_window` with `_validate_crop_window` that accepts the transform log and record.
+- Annotation + resume/skip-existing/retry-failed/parallel still prohibited.
+- Image-only behavior and metadata schema fields remain unchanged.
 
 - Training framework or model evaluation.
 - Automatic dataset format conversion (e.g., VOC to COCO).

@@ -2015,6 +2015,32 @@ YAML 调用：
 * YOLO dataset-level integration
 * VOC XML integration
 
+### v0.10.0（已完成）
+
+目标：annotation safety hardening。
+
+已完成：
+
+* annotations.overwrite_output 配置（默认 false），控制 annotation output 是否允许覆盖已有文件
+* CocoAnnotationWriter 原子写入：先写临时文件再 os.replace，失败时旧文件保持不变
+* annotation output_path 预检：overwrite_output=false 且文件已存在时，在图片处理前即失败
+* crop_window 完整防御性验证：六个字段必须是严格整数（bool 被拒绝），范围检查、边界检查
+* source dimension 验证：crop_window source 尺寸必须与当前 record 尺寸匹配
+* 所有验证错误统一抛出 AnnotationIntegrationError（无 KeyError/ValueError 泄漏）
+* input_path == output_path 即使 overwrite_output=true 也无条件拒绝
+* 新增 62 个测试覆盖 crop_window 验证、精确几何、output safety、兼容性
+* image-only 行为和 metadata schema 不变
+* annotation + resume/skip-existing/retry-failed/parallel 仍被禁止
+
+仍不支持：
+
+* annotation merge / append
+* mask / polygon / keypoint sync
+* rotate bbox sync
+* full COCO feature parity
+* YOLO dataset-level integration
+* VOC XML integration
+
 ---
 
 ## 21. Coding Instructions for Codex / Claude Code
